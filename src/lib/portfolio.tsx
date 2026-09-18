@@ -10,12 +10,24 @@ import {
   type ReactNode,
 } from "react";
 import { supabase } from "./supabase";
-import type { Payment, Property, PropertyInput } from "./types";
+import type {
+  Inspection,
+  OnboardingItem,
+  Payment,
+  Property,
+  PropertyInput,
+  Tenancy,
+} from "./types";
 import { daysUntil, portfolioStats } from "./format";
+
+export type TenancyInput = Omit<Tenancy, "id" | "created_at">;
+export type InspectionInput = Omit<Inspection, "id" | "created_at">;
 
 interface PortfolioContextValue {
   properties: Property[];
   paymentsByProperty: Record<string, Payment[]>;
+  tenancies: Tenancy[];
+  inspections: Inspection[];
   loading: boolean;
   error: string | null;
   stats: ReturnType<typeof portfolioStats>;
@@ -25,6 +37,9 @@ interface PortfolioContextValue {
     propertyId: string,
     input: { due_date: string; amount: number; received_date: string | null }
   ) => Promise<{ error?: string }>;
+  saveTenancy: (data: TenancyInput, id?: string) => Promise<{ error?: string }>;
+  setOnboarding: (tenancyId: string, items: OnboardingItem[]) => Promise<{ error?: string }>;
+  saveInspection: (data: InspectionInput, id?: string) => Promise<{ error?: string }>;
 }
 
 const PortfolioContext = createContext<PortfolioContextValue | null>(null);
@@ -32,6 +47,8 @@ const PortfolioContext = createContext<PortfolioContextValue | null>(null);
 export function PortfolioProvider({ children }: { children: ReactNode }) {
   const [properties, setProperties] = useState<Property[]>([]);
   const [paymentsByProperty, setPaymentsByProperty] = useState<Record<string, Payment[]>>({});
+  const [tenancies, setTenancies] = useState<Tenancy[]>([]);
+  const [inspections, setInspections] = useState<Inspection[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,6 +72,16 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       (grouped[pay.property_id] ||= []).push(pay);
     }
     setPaymentsByProperty(grouped);
+
+    const { data: tens } = await supabase.from("tenancies").select("*").order("created_at");
+    setTenancies((tens as Tenancy[]) || []);
+
+    const { data: insp } = await supabase
+      .from("inspections")
+      .select("*")
+      .order("scheduled_date");
+    setInspections((insp as Inspection[]) || []);
+
     setLoading(false);
   }, []);
 
@@ -110,6 +137,49 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     [reload]
   );
 
+  const saveTenancy = useCallback(
+    async (data: TenancyInput, id?: string) => {
+      const res = id
+        ? await supabase.from("tenancies").update(data).eq("id", id)
+        : await supabase.from("tenancies").insert(data);
+      if (res.error) return { error: res.error.message };
+      await reload();
+      return {};
+    },
+    [reload]
+  );
+
+  const setOnboarding = useCallback(
+    async (tenancyId: string, items: OnboardingItem[]) => {
+      // Optimistic update so ticking a checklist item feels instant.
+      setTenancies((prev) =>
+        prev.map((t) => (t.id === tenancyId ? { ...t, onboarding: items } : t))
+      );
+      const res = await supabase
+        .from("tenancies")
+        .update({ onboarding: items })
+        .eq("id", tenancyId);
+      if (res.error) {
+        await reload();
+        return { error: res.error.message };
+      }
+      return {};
+    },
+    [reload]
+  );
+
+  const saveInspection = useCallback(
+    async (data: InspectionInput, id?: string) => {
+      const res = id
+        ? await supabase.from("inspections").update(data).eq("id", id)
+        : await supabase.from("inspections").insert(data);
+      if (res.error) return { error: res.error.message };
+      await reload();
+      return {};
+    },
+    [reload]
+  );
+
   const stats = useMemo(
     () => portfolioStats(properties, paymentsByProperty),
     [properties, paymentsByProperty]
@@ -118,12 +188,17 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   const value: PortfolioContextValue = {
     properties,
     paymentsByProperty,
+    tenancies,
+    inspections,
     loading,
     error,
     stats,
     reload,
     saveProperty,
     addPayment,
+    saveTenancy,
+    setOnboarding,
+    saveInspection,
   };
 
   return <PortfolioContext.Provider value={value}>{children}</PortfolioContext.Provider>;

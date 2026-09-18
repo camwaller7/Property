@@ -28,6 +28,51 @@ export interface Payment {
   created_at?: string;
 }
 
+export type TenancyStatus = "upcoming" | "active" | "ended";
+
+export interface OnboardingItem {
+  key: string;
+  label: string;
+  done: boolean;
+  done_date?: string | null;
+}
+
+export interface Tenancy {
+  id: string;
+  property_id: string | null;
+  tenant_name: string | null;
+  tenant_email: string | null;
+  tenant_phone: string | null;
+  emergency_contact: string | null;
+  move_in_date: string | null;
+  lease_start: string | null;
+  lease_end: string | null;
+  weekly_rent: number | null;
+  bond_amount: number | null;
+  bond_lodged: boolean;
+  bond_reference: string | null;
+  status: TenancyStatus;
+  onboarding: OnboardingItem[];
+  notes: string | null;
+  created_at?: string;
+}
+
+export type InspectionKind = "entry" | "routine" | "exit";
+export type InspectionStatus = "scheduled" | "completed" | "cancelled";
+
+export interface Inspection {
+  id: string;
+  property_id: string | null;
+  tenancy_id: string | null;
+  kind: InspectionKind;
+  scheduled_date: string | null;
+  scheduled_time: string | null;
+  notice_sent_date: string | null;
+  status: InspectionStatus;
+  notes: string | null;
+  created_at?: string;
+}
+
 // Editable subset used by the add/edit property form.
 export type PropertyInput = Omit<Property, "id" | "created_at">;
 

@@ -87,11 +87,33 @@ project. Deployment protection is off so the site is public.
 `auth.uid()`; gate the workspace behind a real session instead of the passcode.
 This is the first item on the Management roadmap.
 
+## Management (built)
+
+The Management workspace (`/app/management`) is live and usable end-to-end:
+
+- **Tenancies** — a record per tenant linked to a property (contact, lease dates,
+  move-in date, weekly rent, emergency contact, notes) with upcoming/active/ended
+  status.
+- **Move-in onboarding checklist** — seeded with the SA move-in essentials
+  (agreement signed, ingoing condition report, bond collected & lodged with CBS,
+  first rent, smoke alarms, keys, handbook, insurance). Tick items off with the
+  tenant; progress is tracked per tenancy.
+- **Bond** — records the amount, CBS lodgement status and reference, and flags a
+  bond that exceeds the SA legal cap (4 weeks' rent ≤ $800/week, else 6 weeks).
+- **Inspections** — schedule entry / routine / exit inspections. Routine
+  inspections are validated against SA rules: 7–28 days' written notice (the app
+  shows the valid date window) and no Sundays. Mark them completed or cancelled.
+
+Backed by two additive tables (`tenancies`, `inspections`); see
+`supabase/migrations/`. SA rules live in `src/lib/sa-rules.ts`.
+
 ## Roadmap
 
-- **Auth + locked-down RLS** — before more data goes in.
+- **Auth + locked-down RLS** — before more real tenant data goes in (the
+  Management tables use the same anon stopgap policy as properties/payments).
 - **Renovations** — receipt capture, tax categorisation, cost-vs-value, accountant export.
-- **Management** — quarterly inspections (SA notice rules), compliance, tenant comms.
+- **Compliance schedule** — recurring smoke-alarm checks and reminders beyond the
+  move-in checklist.
 - **Deeper finance** — cash-on-cash return, per-property gearing status.
 
 Test property for validating changes: **Eltham Ave, SA** — $600/week, 6-month
