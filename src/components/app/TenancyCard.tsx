@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Badge from "@/components/ui/Badge";
+import ApplicationPanel from "./ApplicationPanel";
 import InspectionScheduler from "./InspectionScheduler";
 import { usePortfolio } from "@/lib/portfolio";
 import type { Inspection, Tenancy } from "@/lib/types";
@@ -136,6 +137,9 @@ export default function TenancyCard({
               ))}
             </ul>
           </div>
+
+          {/* Tenant application / onboarding link */}
+          <ApplicationPanel tenancy={t} />
 
           {/* Inspections */}
           <div className="mt-6">

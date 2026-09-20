@@ -103,14 +103,41 @@ The Management workspace (`/app/management`) is live and usable end-to-end:
 - **Inspections** — schedule entry / routine / exit inspections. Routine
   inspections are validated against SA rules: 7–28 days' written notice (the app
   shows the valid date window) and no Sundays. Mark them completed or cancelled.
+- **Tenant onboarding link** — generate a secure per-tenancy link (with a
+  copy-ready email) to send the applicant. It opens a public form at
+  `/onboard/[token]` covering personal details, employment/income, rental
+  history, references, emergency contact, declarations and document uploads
+  (photo ID, proof of income). The form **cannot be submitted with any required
+  field or document missing** (`validateApplication` in
+  `src/lib/application-schema.ts`). On submit, files upload to a private Supabase
+  Storage bucket, the data lands on the application row, and key details flow
+  into the tenancy automatically. The owner can then view the submission,
+  open documents via short-lived signed URLs, and generate a **prefilled
+  Residential Tenancy Agreement + Tenant Handbook** (print / save as PDF) at
+  `/app/management/documents/[id]`.
 
-Backed by two additive tables (`tenancies`, `inspections`); see
-`supabase/migrations/`. SA rules live in `src/lib/sa-rules.ts`.
+Backed by additive tables (`tenancies`, `inspections`, `tenant_applications`)
+and a private `tenant-documents` storage bucket; see `supabase/migrations/`. SA
+rules live in `src/lib/sa-rules.ts`; the application schema in
+`src/lib/application-schema.ts`.
+
+## ⚠️ Security priority — sensitive applicant data
+
+The onboarding form now collects **real PII and identity documents** (licence,
+passport, proof of income). These are stored under the same **stopgap RLS**: the
+public anon key can read/write every table, and uploaded files sit in a private
+bucket that anon can read. The token in each onboarding link provides obscurity,
+not access control.
+
+**Before collecting a real applicant's documents at scale, do the auth lockdown:**
+add Supabase Auth, an `owner_id` column, and RLS policies keyed to `auth.uid()`;
+scope the public onboarding path to write-only-by-token; and restrict storage
+reads to the owner. This is the next roadmap item and should be prioritised.
 
 ## Roadmap
 
-- **Auth + locked-down RLS** — before more real tenant data goes in (the
-  Management tables use the same anon stopgap policy as properties/payments).
+- **Auth + locked-down RLS** — now the top priority (sensitive applicant PII/ID
+  is in the system under the anon stopgap policy).
 - **Renovations** — receipt capture, tax categorisation, cost-vs-value, accountant export.
 - **Compliance schedule** — recurring smoke-alarm checks and reminders beyond the
   move-in checklist.

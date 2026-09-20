@@ -57,6 +57,27 @@ export interface Tenancy {
   created_at?: string;
 }
 
+export interface ApplicationDocument {
+  kind: string;
+  name: string;
+  path: string;
+  size?: number;
+  uploaded_at?: string;
+}
+
+export type ApplicationStatus = "invited" | "submitted";
+
+export interface TenantApplication {
+  id: string;
+  tenancy_id: string | null;
+  token: string;
+  status: ApplicationStatus;
+  data: Record<string, unknown>;
+  documents: ApplicationDocument[];
+  submitted_at: string | null;
+  created_at?: string;
+}
+
 export type InspectionKind = "entry" | "routine" | "exit";
 export type InspectionStatus = "scheduled" | "completed" | "cancelled";
 

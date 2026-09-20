@@ -77,3 +77,18 @@ body {
 .tabular {
   font-variant-numeric: tabular-nums;
 }
+
+/* Print: drop the app chrome so contracts/handbooks print clean. */
+@media print {
+  aside,
+  .no-print {
+    display: none !important;
+  }
+  main {
+    padding: 0 !important;
+  }
+  :root {
+    --background: #ffffff;
+    --foreground: #000000;
+  }
+}

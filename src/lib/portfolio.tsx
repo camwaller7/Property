@@ -17,6 +17,7 @@ import type {
   Property,
   PropertyInput,
   Tenancy,
+  TenantApplication,
 } from "./types";
 import { daysUntil, portfolioStats } from "./format";
 
@@ -28,6 +29,7 @@ interface PortfolioContextValue {
   paymentsByProperty: Record<string, Payment[]>;
   tenancies: Tenancy[];
   inspections: Inspection[];
+  applications: TenantApplication[];
   loading: boolean;
   error: string | null;
   stats: ReturnType<typeof portfolioStats>;
@@ -40,6 +42,7 @@ interface PortfolioContextValue {
   saveTenancy: (data: TenancyInput, id?: string) => Promise<{ error?: string }>;
   setOnboarding: (tenancyId: string, items: OnboardingItem[]) => Promise<{ error?: string }>;
   saveInspection: (data: InspectionInput, id?: string) => Promise<{ error?: string }>;
+  createApplication: (tenancyId: string) => Promise<{ token?: string; error?: string }>;
 }
 
 const PortfolioContext = createContext<PortfolioContextValue | null>(null);
@@ -49,6 +52,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   const [paymentsByProperty, setPaymentsByProperty] = useState<Record<string, Payment[]>>({});
   const [tenancies, setTenancies] = useState<Tenancy[]>([]);
   const [inspections, setInspections] = useState<Inspection[]>([]);
+  const [applications, setApplications] = useState<TenantApplication[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -81,6 +85,12 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       .select("*")
       .order("scheduled_date");
     setInspections((insp as Inspection[]) || []);
+
+    const { data: apps } = await supabase
+      .from("tenant_applications")
+      .select("*")
+      .order("created_at");
+    setApplications((apps as TenantApplication[]) || []);
 
     setLoading(false);
   }, []);
@@ -180,6 +190,25 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     [reload]
   );
 
+  const createApplication = useCallback(
+    async (tenancyId: string) => {
+      // Reuse an existing application for this tenancy if one was already made.
+      const existing = applications.find((a) => a.tenancy_id === tenancyId);
+      if (existing) return { token: existing.token };
+
+      const token =
+        (globalThis.crypto?.randomUUID?.() ?? String(Math.random())).replace(/-/g, "") +
+        Math.random().toString(36).slice(2, 8);
+      const res = await supabase
+        .from("tenant_applications")
+        .insert({ tenancy_id: tenancyId, token, status: "invited" });
+      if (res.error) return { error: res.error.message };
+      await reload();
+      return { token };
+    },
+    [applications, reload]
+  );
+
   const stats = useMemo(
     () => portfolioStats(properties, paymentsByProperty),
     [properties, paymentsByProperty]
@@ -190,6 +219,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     paymentsByProperty,
     tenancies,
     inspections,
+    applications,
     loading,
     error,
     stats,
@@ -199,6 +229,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     saveTenancy,
     setOnboarding,
     saveInspection,
+    createApplication,
   };
 
   return <PortfolioContext.Provider value={value}>{children}</PortfolioContext.Provider>;
