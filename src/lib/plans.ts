@@ -14,15 +14,21 @@ export const PLANS: Record<string, Plan> = {
     key: "free",
     name: "Free",
     priceLabel: "$0",
-    propertyLimit: 3,
-    features: ["Up to 3 properties", "Rent ledger & tenancies", "Tenant onboarding & portal"],
+    propertyLimit: 1,
+    features: ["1 property", "Rent ledger & tenancy", "Tenant onboarding & portal"],
   },
   pro: {
     key: "pro",
     name: "Pro",
     priceLabel: "$29/mo",
     propertyLimit: null,
-    features: ["Unlimited properties", "Team members", "Everything in Free", "Priority support"],
+    features: [
+      "Unlimited properties",
+      "Document & forms library",
+      "Team members",
+      "Online rent payments",
+      "Everything in Free",
+    ],
   },
 };
 
