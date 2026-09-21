@@ -134,11 +134,15 @@ The Management workspace (`/app/management`) is live and usable end-to-end:
 - **Tenant portal** — enable a secure per-tenancy portal (`/portal/[token]`,
   no login) where the tenant sees rent + next-due + payment history, lease &
   bond summary, notices/reminders you post, shared documents & handouts, and
-  their property manager's contact. Tenants **submit maintenance requests**
-  (category, urgency, description, optional photo) and track their status; the
-  manager works them from a **Maintenance requests** panel on `/app/management`
-  (status control + photo view). All portal reads/writes go through token-scoped
-  `SECURITY DEFINER` RPCs (`portal_get`, `portal_submit_request`).
+  their property manager's contact. Tenants raise **matters** — maintenance /
+  repair (with photo), enquiry, complaint or a plain message — each with a
+  **shared two-sided thread**: the tenant and manager exchange messages and the
+  tenant portal reflects the live **resolution phase** (open → in progress →
+  scheduled → resolved). The manager works matters from a **Requests &
+  communication** panel on `/app/management` (phase control, reply, photo view);
+  every phase change and reply is logged to the thread and can email the tenant.
+  All portal reads/writes go through token-scoped `SECURITY DEFINER` RPCs
+  (`portal_get`, `portal_submit_request`, `portal_add_message`).
 
 Backed by additive tables (`tenancies`, `inspections`, `tenant_applications`,
 `notices`, `portal_resources`, `maintenance_requests`) and private storage

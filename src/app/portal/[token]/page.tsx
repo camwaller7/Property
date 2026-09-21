@@ -41,15 +41,23 @@ const noticeTone: Record<string, "good" | "bad" | "warn" | "neutral"> = {
 const statusTone: Record<string, "good" | "bad" | "warn" | "neutral"> = {
   open: "warn",
   in_progress: "neutral",
+  scheduled: "neutral",
   resolved: "good",
   cancelled: "neutral",
 };
 const statusLabel: Record<string, string> = {
   open: "Open",
   in_progress: "In progress",
+  scheduled: "Scheduled",
   resolved: "Resolved",
   cancelled: "Cancelled",
 };
+const KINDS: { value: string; label: string }[] = [
+  { value: "maintenance", label: "Maintenance / repair" },
+  { value: "enquiry", label: "General enquiry" },
+  { value: "complaint", label: "Complaint" },
+  { value: "communication", label: "Message" },
+];
 
 export default function PortalPage() {
   const params = useParams<{ token: string }>();
@@ -256,6 +264,7 @@ function MaintenanceCard({
   tenantName: string | null;
 }) {
   const [open, setOpen] = useState(false);
+  const [kind, setKind] = useState("maintenance");
   const [category, setCategory] = useState("General");
   const [urgency, setUrgency] = useState("normal");
   const [title, setTitle] = useState("");
@@ -286,19 +295,19 @@ function MaintenanceCard({
         p_description: description.trim() || null,
         p_urgency: urgency,
         p_photo_path: photoPath,
+        p_kind: kind,
       });
       if (error) throw new Error(error.message);
       if (res?.error) throw new Error("Couldn't submit — please contact your manager.");
 
-      // Best-effort email alert to the manager (won't block the submission).
       if (managerEmail) {
         fetch("/api/email", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             to: managerEmail,
-            subject: `New maintenance request${propertyLabel ? ` — ${propertyLabel}` : ""}`,
-            body: `${tenantName || "A tenant"} submitted a ${urgency} ${category} request:\n\n${title}\n${description}\n\nOpen the workspace to action it.`,
+            subject: `New ${kind}${propertyLabel ? ` — ${propertyLabel}` : ""}`,
+            body: `${tenantName || "A tenant"} submitted a ${urgency} ${category} ${kind}:\n\n${title}\n${description}\n\nOpen the workspace to action it.`,
           }),
         }).catch(() => {});
       }
@@ -306,10 +315,11 @@ function MaintenanceCard({
       setTitle("");
       setDescription("");
       setFile(undefined);
+      setKind("maintenance");
       setCategory("General");
       setUrgency("normal");
       setOpen(false);
-      setMsg("Request submitted ✓");
+      setMsg("Submitted ✓");
       await onSubmitted();
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Something went wrong.");
@@ -318,49 +328,68 @@ function MaintenanceCard({
     }
   }
 
+  const isMaintenance = kind === "maintenance";
+
   return (
-    <Card title="Maintenance requests">
+    <Card title="Requests & messages">
       <div className="mb-4 flex items-center justify-between">
-        <p className="text-sm text-muted">Report a repair or issue at the property.</p>
+        <p className="text-sm text-muted">Report a repair, ask a question, or message your manager.</p>
         <button
           onClick={() => setOpen((o) => !o)}
           className="rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background hover:opacity-80"
         >
-          {open ? "Close" : "New request"}
+          {open ? "Close" : "New"}
         </button>
       </div>
 
       {open && (
         <div className="mb-4 rounded-xl border border-border p-4">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Select label="Category" value={category} onChange={(e) => setCategory(e.target.value)}>
-              {CATEGORIES.map((c) => (
-                <option key={c} value={c}>{c}</option>
+            <Select label="Type" value={kind} onChange={(e) => setKind(e.target.value)}>
+              {KINDS.map((k) => (
+                <option key={k.value} value={k.value}>{k.label}</option>
               ))}
             </Select>
-            <Select label="Urgency" value={urgency} onChange={(e) => setUrgency(e.target.value)}>
-              <option value="low">Low</option>
-              <option value="normal">Normal</option>
-              <option value="urgent">Urgent</option>
-            </Select>
-            <Field label="Title" className="sm:col-span-2" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Kitchen tap dripping" />
-            <Textarea label="Description" className="sm:col-span-2" value={description} onChange={(e) => setDescription(e.target.value)} />
+            {isMaintenance ? (
+              <Select label="Category" value={category} onChange={(e) => setCategory(e.target.value)}>
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </Select>
+            ) : (
+              <Select label="Urgency" value={urgency} onChange={(e) => setUrgency(e.target.value)}>
+                <option value="low">Low</option>
+                <option value="normal">Normal</option>
+                <option value="urgent">Urgent</option>
+              </Select>
+            )}
+            {isMaintenance && (
+              <Select label="Urgency" value={urgency} onChange={(e) => setUrgency(e.target.value)}>
+                <option value="low">Low</option>
+                <option value="normal">Normal</option>
+                <option value="urgent">Urgent</option>
+              </Select>
+            )}
+            <Field label="Title / subject" className="sm:col-span-2" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Kitchen tap dripping" />
+            <Textarea label="Details" className="sm:col-span-2" value={description} onChange={(e) => setDescription(e.target.value)} />
           </div>
-          <div className="mt-3">
-            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">Photo (optional)</span>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => setFile(e.target.files?.[0])}
-              className="block w-full text-sm text-muted file:mr-3 file:rounded-full file:border-0 file:bg-foreground file:px-4 file:py-2 file:text-sm file:font-medium file:text-background"
-            />
-          </div>
+          {isMaintenance && (
+            <div className="mt-3">
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">Photo (optional)</span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setFile(e.target.files?.[0])}
+                className="block w-full text-sm text-muted file:mr-3 file:rounded-full file:border-0 file:bg-foreground file:px-4 file:py-2 file:text-sm file:font-medium file:text-background"
+              />
+            </div>
+          )}
           <button
             onClick={submit}
             disabled={busy}
             className="mt-3 rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-background hover:opacity-80 disabled:opacity-50"
           >
-            {busy ? "Submitting…" : "Submit request"}
+            {busy ? "Submitting…" : "Submit"}
           </button>
         </div>
       )}
@@ -368,27 +397,98 @@ function MaintenanceCard({
       {msg && <p className="mb-3 text-sm text-muted">{msg}</p>}
 
       {requests.length === 0 ? (
-        <p className="text-sm text-muted">No requests yet.</p>
+        <p className="text-sm text-muted">Nothing yet.</p>
       ) : (
         <ul className="space-y-2">
           {requests.map((r) => (
-            <li key={r.id} className="rounded-xl border border-border p-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-sm font-medium">
-                  {r.title} <span className="text-xs text-muted">· {r.category}</span>
-                </span>
-                <span className="flex items-center gap-2">
-                  {r.urgency === "urgent" && <Badge tone="bad">Urgent</Badge>}
-                  <Badge tone={statusTone[r.status] || "neutral"}>{statusLabel[r.status] || r.status}</Badge>
-                </span>
-              </div>
-              {r.description && <p className="mt-1 text-sm text-muted">{r.description}</p>}
-              <p className="mt-1 text-xs text-muted">Submitted {fmtDate(r.created_at)}</p>
-            </li>
+            <PortalMatter key={r.id} token={token} matter={r} onChanged={onSubmitted} />
           ))}
         </ul>
       )}
     </Card>
+  );
+}
+
+function PortalMatter({
+  token,
+  matter,
+  onChanged,
+}: {
+  token: string;
+  matter: MaintenanceRequest;
+  onChanged: () => Promise<void>;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [reply, setReply] = useState("");
+  const [busy, setBusy] = useState(false);
+  const messages = matter.messages || [];
+
+  async function send() {
+    if (!reply.trim()) return;
+    setBusy(true);
+    const { error } = await supabase.rpc("portal_add_message", {
+      p_token: token,
+      p_request_id: matter.id,
+      p_body: reply.trim(),
+    });
+    setBusy(false);
+    if (!error) {
+      setReply("");
+      await onChanged();
+    }
+  }
+
+  return (
+    <li className="rounded-xl border border-border p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <button onClick={() => setExpanded((e) => !e)} className="text-left text-sm font-medium">
+          {matter.title} <span className="text-xs capitalize text-muted">· {matter.kind}</span>
+        </button>
+        <span className="flex items-center gap-2">
+          {matter.urgency === "urgent" && <Badge tone="bad">Urgent</Badge>}
+          <Badge tone={statusTone[matter.status] || "neutral"}>{statusLabel[matter.status] || matter.status}</Badge>
+        </span>
+      </div>
+      <button onClick={() => setExpanded((e) => !e)} className="mt-1 text-xs text-accent hover:underline">
+        {expanded ? "Hide" : `View thread (${messages.length})`}
+      </button>
+
+      {expanded && (
+        <div className="mt-2 border-t border-border pt-2">
+          <ul className="space-y-2">
+            {messages.length === 0 && <li className="text-xs text-muted">No messages yet.</li>}
+            {messages.map((m, i) => (
+              <li key={i} className={`text-sm ${m.author === "tenant" ? "text-right" : ""}`}>
+                <div className={`inline-block max-w-[85%] rounded-xl px-3 py-2 ${m.author === "tenant" ? "bg-accent/10" : "bg-surface"}`}>
+                  {m.status_change ? (
+                    <span className="text-xs text-muted">
+                      Status changed to <strong>{statusLabel[m.status_change] || m.status_change}</strong>
+                    </span>
+                  ) : (
+                    <span>{m.body}</span>
+                  )}
+                  <div className="mt-0.5 text-[11px] text-muted">
+                    {m.author === "tenant" ? "You" : "Manager"} · {fmtDate(m.created_at)}
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-2 flex gap-2">
+            <input
+              value={reply}
+              onChange={(e) => setReply(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && send()}
+              placeholder="Add a reply…"
+              className="flex-1 rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
+            />
+            <button onClick={send} disabled={busy} className="rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background hover:opacity-80 disabled:opacity-50">
+              {busy ? "…" : "Send"}
+            </button>
+          </div>
+        </div>
+      )}
+    </li>
   );
 }
 

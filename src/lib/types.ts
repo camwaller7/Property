@@ -99,20 +99,30 @@ export interface AppNotification {
   created_at?: string;
 }
 
-export type MaintenanceStatus = "open" | "in_progress" | "resolved" | "cancelled";
+export type MaintenanceStatus = "open" | "in_progress" | "scheduled" | "resolved" | "cancelled";
 export type MaintenanceUrgency = "low" | "normal" | "urgent";
+export type MatterKind = "maintenance" | "enquiry" | "complaint" | "communication";
+
+export interface MatterMessage {
+  author: "tenant" | "manager";
+  body: string | null;
+  status_change: string | null;
+  created_at?: string;
+}
 
 export interface MaintenanceRequest {
   id: string;
   org_id: string | null;
   tenancy_id: string | null;
   property_id: string | null;
+  kind: MatterKind | string;
   category: string;
   title: string;
   description: string | null;
   urgency: MaintenanceUrgency;
   status: MaintenanceStatus;
   photo_path: string | null;
+  messages?: MatterMessage[];
   created_at?: string;
   resolved_at: string | null;
 }

@@ -57,6 +57,7 @@ interface PortfolioContextValue {
   createInvite: (role: OrgRole) => Promise<{ token?: string; error?: string }>;
   removeMember: (userId: string) => Promise<{ error?: string }>;
   updateRequestStatus: (id: string, status: MaintenanceStatus) => Promise<{ error?: string }>;
+  addMatterMessage: (requestId: string, body: string) => Promise<{ error?: string }>;
   markNotificationsRead: () => Promise<void>;
   saveProperty: (data: PropertyInput, id?: string) => Promise<{ error?: string }>;
   addPayment: (
@@ -383,6 +384,21 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     [org, reload]
   );
 
+  // Best-effort email to the tenant on a matter update (never blocks the update).
+  const emailTenantForRequest = useCallback(
+    (requestId: string, subject: string, body: string) => {
+      const req = maintenance.find((m) => m.id === requestId);
+      const ten = tenancies.find((t) => t.id === req?.tenancy_id);
+      if (!ten?.tenant_email) return;
+      fetch("/api/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to: ten.tenant_email, subject, body, tenancyId: ten.id }),
+      }).catch(() => {});
+    },
+    [maintenance, tenancies]
+  );
+
   const updateRequestStatus = useCallback(
     async (id: string, status: MaintenanceStatus) => {
       const res = await supabase
@@ -390,10 +406,37 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         .update({ status, resolved_at: status === "resolved" ? new Date().toISOString() : null })
         .eq("id", id);
       if (res.error) return { error: res.error.message };
+      // Log the phase change to the shared thread and let the tenant know.
+      await supabase.from("matter_messages").insert({ request_id: id, author: "manager", status_change: status });
+      const req = maintenance.find((m) => m.id === id);
+      emailTenantForRequest(
+        id,
+        `Update on your request: ${req?.title ?? ""}`,
+        `The status of your request "${req?.title ?? ""}" is now: ${status.replace("_", " ")}. Log in to your tenant portal to see details.`
+      );
       await reload();
       return {};
     },
-    [reload]
+    [reload, maintenance, emailTenantForRequest]
+  );
+
+  const addMatterMessage = useCallback(
+    async (requestId: string, body: string) => {
+      if (!body.trim()) return { error: "Message is empty." };
+      const res = await supabase
+        .from("matter_messages")
+        .insert({ request_id: requestId, author: "manager", body: body.trim() });
+      if (res.error) return { error: res.error.message };
+      const req = maintenance.find((m) => m.id === requestId);
+      emailTenantForRequest(
+        requestId,
+        `Message about your request: ${req?.title ?? ""}`,
+        `${body.trim()}\n\nLog in to your tenant portal to reply.`
+      );
+      await reload();
+      return {};
+    },
+    [reload, maintenance, emailTenantForRequest]
   );
 
   const markNotificationsRead = useCallback(async () => {
@@ -437,6 +480,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     createInvite,
     removeMember,
     updateRequestStatus,
+    addMatterMessage,
     markNotificationsRead,
     saveProperty,
     addPayment,
