@@ -53,15 +53,16 @@ export async function POST(req: Request) {
     errorText = e instanceof Error ? e.message : "Request to Zapier failed";
   }
 
-  // Record the send attempt (best-effort).
+  // Record the send attempt (best-effort) via a SECURITY DEFINER RPC, since this
+  // route runs as anon and no longer has direct table access.
   try {
-    await supabase.from("email_log").insert({
-      tenancy_id: tenancyId ?? null,
-      to_email: to,
-      subject,
-      body: body ?? null,
-      status,
-      error: errorText,
+    await supabase.rpc("log_email", {
+      p_tenancy_id: tenancyId ?? null,
+      p_to: to,
+      p_subject: subject,
+      p_body: body ?? null,
+      p_status: status,
+      p_error: errorText,
     });
   } catch {
     // logging is non-fatal

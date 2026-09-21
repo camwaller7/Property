@@ -137,27 +137,43 @@ and a private `tenant-documents` storage bucket; see `supabase/migrations/`. SA
 rules live in `src/lib/sa-rules.ts`; the application schema in
 `src/lib/application-schema.ts`.
 
-## ⚠️ Security priority — sensitive applicant data
+## Security model (locked down)
 
-The onboarding form now collects **real PII and identity documents** (licence,
-passport, proof of income). These are stored under the same **stopgap RLS**: the
-public anon key can read/write every table, and uploaded files sit in a private
-bucket that anon can read. The token in each onboarding link provides obscurity,
-not access control.
+The anon stopgap has been replaced:
 
-**Before collecting a real applicant's documents at scale, do the auth lockdown:**
-add Supabase Auth, an `owner_id` column, and RLS policies keyed to `auth.uid()`;
-scope the public onboarding path to write-only-by-token; and restrict storage
-reads to the owner. This is the next roadmap item and should be prioritised.
+- **Manager workspace requires Supabase Auth.** `/app` shows a real email/password
+  sign-in; once signed in, every query runs as `authenticated`, and all tables
+  have `authenticated`-only RLS policies. There is no more passcode.
+- **The public anon key can no longer read or write any table.** RLS grants no
+  access to `anon`. Public token pages reach data **only** through token-scoped
+  `SECURITY DEFINER` RPCs (`onboard_get`, `onboard_submit`, `portal_get`), each of
+  which returns just the one record matching the link's token — so a leaked anon
+  key can't enumerate tenants' data.
+- **Documents:** ID/income uploads live in a **private** bucket — the applicant
+  can upload (anon insert) but only the signed-in manager can read them (via
+  signed URLs). Non-sensitive handouts live in a **public** bucket.
+
+Supabase's linter flags the three token RPCs as publicly executable — that is
+intentional (public-by-token access) and safe, as each requires a valid,
+unguessable token and returns only the matching row.
+
+**Manager account:** create it once in Supabase (Authentication → Users → Add
+user, with auto-confirm) — see `docs/SETUP.md`. Keep sign-ups **disabled** so
+only accounts you create can reach the workspace.
+
+### Future hardening (multi-owner)
+
+Currently any signed-in user is treated as the single owner. When the platform
+grows to multiple managers/agencies, add an `owner_id` column and scope RLS to
+`auth.uid()` so each account sees only its own portfolio.
 
 ## Roadmap
-
-- **Auth + locked-down RLS** — now the top priority (sensitive applicant PII/ID
-  is in the system under the anon stopgap policy).
 - **Renovations** — receipt capture, tax categorisation, cost-vs-value, accountant export.
+- **Scheduled reminders** — automatic emails when rent/bills fall due (cron/edge function).
 - **Compliance schedule** — recurring smoke-alarm checks and reminders beyond the
   move-in checklist.
 - **Deeper finance** — cash-on-cash return, per-property gearing status.
+- **Multi-owner** — `owner_id` + `auth.uid()`-scoped RLS (see Security model).
 
 Test property for validating changes: **Eltham Ave, SA** — $600/week, 6-month
 lease from ~late Sep 2026, bond capped at $2,400 under SA rules.

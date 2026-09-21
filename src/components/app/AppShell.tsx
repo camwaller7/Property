@@ -3,13 +3,10 @@
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { Session } from "@supabase/supabase-js";
 import { brand } from "@/lib/brand";
+import { supabase } from "@/lib/supabase";
 import { PortfolioProvider } from "@/lib/portfolio";
-
-// Client-side passcode gate carried over from the original app. This is a
-// deterrent only, NOT real security — the roadmap replaces it with Supabase
-// Auth + row-level security before real tenant data is trusted to it.
-const PASSCODE = "eltham26";
 
 const nav = [
   { href: "/app", label: "Dashboard", exact: true },
@@ -20,26 +17,28 @@ const nav = [
 ];
 
 export default function AppShell({ children }: { children: ReactNode }) {
-  const [unlocked, setUnlocked] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => {
-    // sessionStorage is unavailable during SSR, so read it after mount.
-    // Deferred a microtask to keep synchronous setState out of the effect body.
     let active = true;
-    Promise.resolve().then(() => {
+    supabase.auth.getSession().then(({ data }) => {
       if (!active) return;
-      setUnlocked(sessionStorage.getItem("pt_unlocked") === "1");
+      setSession(data.session);
       setReady(true);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
+      setSession(s);
     });
     return () => {
       active = false;
+      sub.subscription.unsubscribe();
     };
   }, []);
 
   if (!ready) return null;
-  if (!unlocked) return <LockScreen onUnlock={() => setUnlocked(true)} />;
+  if (!session) return <LoginScreen />;
 
   return (
     <PortfolioProvider>
@@ -70,9 +69,15 @@ export default function AppShell({ children }: { children: ReactNode }) {
             })}
           </nav>
           <div className="hidden px-6 py-6 md:block">
-            <Link href="/" className="text-xs text-muted hover:text-foreground">
-              ← Back to site
-            </Link>
+            <div className="mb-2 truncate text-xs text-muted" title={session.user.email ?? ""}>
+              {session.user.email}
+            </div>
+            <button
+              onClick={() => supabase.auth.signOut()}
+              className="text-xs text-muted hover:text-foreground"
+            >
+              Sign out
+            </button>
           </div>
         </aside>
         <main className="flex-1 px-6 py-8 md:px-10 md:py-12">{children}</main>
@@ -81,40 +86,54 @@ export default function AppShell({ children }: { children: ReactNode }) {
   );
 }
 
-function LockScreen({ onUnlock }: { onUnlock: () => void }) {
-  const [value, setValue] = useState("");
+function LoginScreen() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  function submit() {
-    if (value === PASSCODE) {
-      sessionStorage.setItem("pt_unlocked", "1");
-      onUnlock();
-    } else {
-      setErr("Incorrect passcode.");
+  async function signIn() {
+    if (!email || !password) {
+      setErr("Enter your email and password.");
+      return;
     }
+    setBusy(true);
+    setErr("");
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    setBusy(false);
+    if (error) setErr(error.message);
+    // On success, onAuthStateChange swaps this screen for the workspace.
   }
 
   return (
     <div className="flex min-h-screen items-center justify-center px-5">
-      <div className="w-full max-w-sm rounded-2xl border border-border bg-surface p-8 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">{brand.name}</h1>
-        <p className="mt-2 text-sm text-muted">Enter your passcode to continue</p>
+      <div className="w-full max-w-sm rounded-2xl border border-border bg-surface p-8">
+        <h1 className="text-center text-2xl font-semibold tracking-tight">{brand.name}</h1>
+        <p className="mt-2 text-center text-sm text-muted">Manager sign in</p>
+        <input
+          type="email"
+          autoFocus
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Email"
+          className="mt-5 w-full rounded-xl border border-border bg-background px-4 py-3 outline-none focus:border-accent"
+        />
         <input
           type="password"
-          autoFocus
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && submit()}
-          placeholder="Passcode"
-          className="mt-5 w-full rounded-xl border border-border bg-background px-4 py-3 text-center outline-none focus:border-accent"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && signIn()}
+          placeholder="Password"
+          className="mt-3 w-full rounded-xl border border-border bg-background px-4 py-3 outline-none focus:border-accent"
         />
         <button
-          onClick={submit}
-          className="mt-4 w-full rounded-full bg-foreground px-6 py-3 text-sm font-medium text-background transition-opacity hover:opacity-80"
+          onClick={signIn}
+          disabled={busy}
+          className="mt-4 w-full rounded-full bg-foreground px-6 py-3 text-sm font-medium text-background transition-opacity hover:opacity-80 disabled:opacity-50"
         >
-          Unlock
+          {busy ? "Signing in…" : "Sign in"}
         </button>
-        <p className="mt-3 min-h-[18px] text-sm text-bad">{err}</p>
+        <p className="mt-3 min-h-[18px] text-center text-sm text-bad">{err}</p>
       </div>
     </div>
   );

@@ -34,25 +34,20 @@ export default function OnboardPage() {
   useEffect(() => {
     let active = true;
     (async () => {
-      const { data, error } = await supabase
-        .from("tenant_applications")
-        .select("*, tenancies(property_id, properties(address))")
-        .eq("token", token)
-        .maybeSingle();
+      // Token-scoped RPC (SECURITY DEFINER): returns only this application, so
+      // the public anon key can't enumerate other applicants' data.
+      const { data, error } = await supabase.rpc("onboard_get", { p_token: token });
       if (!active) return;
       if (error || !data) {
         setState({ phase: "notfound" });
         return;
       }
-      const app = data as unknown as TenantApplication & {
-        tenancies?: { properties?: { address?: string } | null } | null;
-      };
+      const app = data as TenantApplication & { property_address?: string | null };
       if (app.status === "submitted") {
         setState({ phase: "done", submitted: true, app });
         return;
       }
-      const propertyAddress = app.tenancies?.properties?.address ?? null;
-      setState({ phase: "form", app, propertyAddress });
+      setState({ phase: "form", app, propertyAddress: app.property_address ?? null });
     })();
     return () => {
       active = false;
@@ -155,28 +150,16 @@ function OnboardForm({
         documents.push({ kind, name: file.name, path, size: file.size, uploaded_at: new Date().toISOString() });
       }
 
-      // 2. Store the application data + documents on the application row.
-      const upd = await supabase
-        .from("tenant_applications")
-        .update({ data, documents, status: "submitted", submitted_at: new Date().toISOString() })
-        .eq("token", app.token);
-      if (upd.error) throw new Error(upd.error.message);
-
-      // 3. Flow the key details into the tenancy so they appear in the software.
-      if (app.tenancy_id) {
-        const emergency = [data.emergency_name, data.emergency_relationship && `(${data.emergency_relationship})`, data.emergency_phone]
-          .filter(Boolean)
-          .join(" ");
-        await supabase
-          .from("tenancies")
-          .update({
-            tenant_name: (data.full_legal_name as string) || null,
-            tenant_email: (data.email as string) || null,
-            tenant_phone: (data.phone as string) || null,
-            emergency_contact: emergency || null,
-          })
-          .eq("id", app.tenancy_id);
-      }
+      // 2. Store data + documents and flow contact details onto the tenancy,
+      // all inside a token-scoped RPC (no direct table access from anon).
+      const { data: result, error: rpcError } = await supabase.rpc("onboard_submit", {
+        p_token: app.token,
+        p_data: data,
+        p_documents: documents,
+      });
+      if (rpcError) throw new Error(rpcError.message);
+      if (result?.error === "already_submitted") throw new Error("This application has already been submitted.");
+      if (result?.error) throw new Error("Couldn't submit — please check with your property manager.");
 
       window.scrollTo({ top: 0, behavior: "auto" });
       setData(createInitialData());

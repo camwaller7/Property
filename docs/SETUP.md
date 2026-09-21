@@ -17,8 +17,8 @@ Work top to bottom. Each task has a **Done when** check.
 | Existing (old, unlinked) Vercel project | `property-tracker` (personal scope) |
 | Supabase project ref | `tioeqxdulxqiptlszldp` |
 | Supabase URL | `https://tioeqxdulxqiptlszldp.supabase.co` |
-| Workspace passcode | `eltham26` |
-| App routes | `/` (site), `/app` (workspace, passcode), `/onboard/<token>`, `/portal/<token>` |
+| Workspace access | Supabase Auth login (create a manager user — Task 1b) |
+| App routes | `/` (site), `/app` (workspace, sign-in), `/onboard/<token>`, `/portal/<token>` |
 
 Environment variables the app uses:
 
@@ -70,8 +70,21 @@ scope the automation couldn't reach.
 5. **Deploy.** Trigger a deployment (Deployments → Redeploy, or push any commit).
 
 **Done when:** the deployment succeeds and the production URL loads the Folio
-landing page; visiting `/app` shows the passcode screen and `eltham26` unlocks
-the workspace.
+landing page, and visiting `/app` shows the **manager sign-in** screen.
+
+### Task 1b — Create the manager login (required)
+
+The workspace now uses real Supabase Auth (no more passcode). Create your login:
+
+1. Supabase dashboard → project `tioeqxdulxqiptlszldp` → **Authentication → Users
+   → Add user**. Enter your email + a strong password and tick **Auto Confirm
+   User**. Create.
+2. **Authentication → Providers/Sign In** → make sure **Email** is enabled and,
+   importantly, turn **"Allow new users to sign up" OFF** — only users you create
+   in the dashboard should be able to reach the workspace.
+
+**Done when:** at `/app` you can sign in with that email/password and see the
+dashboard.
 
 ---
 
@@ -109,8 +122,9 @@ Do this once against the real property so you trust it before the tenant uses it
 (The build environment can't reach Supabase, so this is the first real
 round-trip.)
 
-1. **Add the property.** `/app` → Properties → **Add property** (e.g. Eltham
-   Ave, weekly rent 600). Confirm it saves and the dashboard KPIs update.
+1. **Sign in & add the property.** `/app` → sign in with your manager login
+   (Task 1b) → Properties → **Add property** (e.g. Eltham Ave, weekly rent 600).
+   Confirm it saves and the dashboard KPIs update.
 2. **Create a tenancy.** Management → **New tenancy**, link it to the property,
    add the tenant's name + email. Confirm the bond cap hint appears.
 3. **Onboarding link.** On the tenancy → **Generate onboarding link** → open the
@@ -133,17 +147,18 @@ round-trip.)
 
 ---
 
-## Task 4 — Security lockdown (strongly recommended before real daily use)
+## Task 4 — Security (already locked down in code + database)
 
-Right now everything uses the Supabase **anon** key with policies that allow full
-read/write, and the onboarding/portal links are protected only by an unguessable
-token. That was a deliberate stopgap to move fast — but the system now holds real
-PII and ID documents. Before relying on it day to day, do the auth lockdown:
-Supabase Auth for the manager, an `owner_id` column, RLS keyed to `auth.uid()`,
-write-only-by-token onboarding, and owner-only document reads.
+The anon stopgap has been replaced (see README "Security model"):
 
-**This is a code change, not a dashboard step — ask Claude Code to do it.** It
-doesn't belong in this browser runbook.
+- The workspace requires Supabase Auth sign-in — **your only dashboard action is
+  Task 1b** (create the manager user, sign-ups off).
+- The public anon key can no longer read/write any table; public links work only
+  through token-scoped RPCs that return a single record.
+- ID/income documents are in a private bucket (manager-only read).
+
+Nothing else to do here. Future multi-owner scoping (`owner_id` + `auth.uid()`
+RLS) is a later code change, not a go-live step.
 
 ---
 

@@ -39,58 +39,37 @@ export default function PortalPage() {
   useEffect(() => {
     let active = true;
     (async () => {
-      const { data, error } = await supabase
-        .from("tenancies")
-        .select("*, properties(address, weekly_rent, rent_due_day)")
-        .eq("portal_token", token)
-        .maybeSingle();
+      // Token-scoped RPC (SECURITY DEFINER): returns only this tenant's data.
+      const { data, error } = await supabase.rpc("portal_get", { p_token: token });
       if (!active) return;
       if (error || !data) {
         setNotFound(true);
         setLoading(false);
         return;
       }
-      const t = data as unknown as Tenancy & { properties?: LoadedProperty | null };
-      setTenancy(t);
-      setProperty(t.properties ?? null);
-
-      const propId = t.property_id;
-      const [{ data: nots }, { data: rsrc }, { data: pays }] = await Promise.all([
-        supabase.from("notices").select("*").order("created_at", { ascending: false }),
-        supabase.from("portal_resources").select("*").order("created_at", { ascending: false }),
-        propId
-          ? supabase.from("payments").select("*").eq("property_id", propId)
-          : Promise.resolve({ data: [] as Payment[] }),
-      ]);
-      if (!active) return;
-
-      const relevantNotices = ((nots as Notice[]) || []).filter(
-        (n) =>
-          n.tenancy_id === t.id ||
-          (!n.tenancy_id && n.property_id === propId) ||
-          (!n.tenancy_id && !n.property_id)
-      );
-      setNotices(relevantNotices);
-
-      const relevantResources = ((rsrc as PortalResource[]) || []).filter(
-        (r) => !r.property_id || r.property_id === propId
-      );
-      setResources(relevantResources);
-      setPayments((pays as Payment[]) || []);
+      const payload = data as {
+        tenancy: Tenancy;
+        property: LoadedProperty | null;
+        notices: Notice[];
+        resources: PortalResource[];
+        payments: Payment[];
+      };
+      setTenancy(payload.tenancy);
+      setProperty(payload.property ?? null);
+      setNotices(payload.notices || []);
+      const rsrc = payload.resources || [];
+      setResources(rsrc);
+      setPayments(payload.payments || []);
       setLoading(false);
 
-      // Signed URLs for any file-backed resources.
+      // Handouts live in a public bucket — resolve direct public URLs.
       const urls: Record<string, string> = {};
-      await Promise.all(
-        relevantResources
-          .filter((r) => r.path)
-          .map(async (r) => {
-            const { data: signed } = await supabase.storage
-              .from(RESOURCE_BUCKET)
-              .createSignedUrl(r.path as string, 3600);
-            if (signed) urls[r.id] = signed.signedUrl;
-          })
-      );
+      for (const r of rsrc) {
+        if (r.path) {
+          const { data: pub } = supabase.storage.from(RESOURCE_BUCKET).getPublicUrl(r.path);
+          if (pub) urls[r.id] = pub.publicUrl;
+        }
+      }
       if (active) setResourceUrls(urls);
     })();
     return () => {
