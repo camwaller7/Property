@@ -7,9 +7,10 @@ import { PLANS, planFor, isPro } from "@/lib/plans";
 import { fmtDate } from "@/lib/format";
 
 export default function BillingPage() {
-  const { org, myRole, properties, loading } = usePortfolio();
+  const { org, myRole, properties, loading, setRentOnlineEnabled } = usePortfolio();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [rentBusy, setRentBusy] = useState(false);
 
   if (loading) return <p className="text-muted">Loading…</p>;
   if (!org) return <p className="text-muted">No organization found.</p>;
@@ -95,6 +96,33 @@ export default function BillingPage() {
       </div>
 
       {error && <p className="mt-4 text-sm text-bad">{error}</p>}
+
+      {/* Online rent collection */}
+      <section className="mt-8 rounded-2xl border border-border p-5">
+        <h2 className="text-lg font-semibold tracking-tight">Rent payments</h2>
+        <p className="mt-1 text-sm text-muted">
+          Let tenants pay rent from their portal via Stripe. When a payment succeeds, the matching
+          ledger entry is marked paid automatically.
+        </p>
+        <label className="mt-4 flex items-center gap-3 text-sm">
+          <input
+            type="checkbox"
+            checked={!!org.rent_online_enabled}
+            disabled={rentBusy || !isAdmin}
+            onChange={async (e) => {
+              setRentBusy(true);
+              await setRentOnlineEnabled(e.target.checked);
+              setRentBusy(false);
+            }}
+          />
+          Accept rent payments online
+        </label>
+        <p className="mt-2 text-xs text-muted">
+          Requires Stripe keys configured for the app (see docs/SETUP.md). Rent is received into the
+          platform Stripe account; per-landlord payouts (Stripe Connect) are future work.
+        </p>
+      </section>
+
       <p className="mt-6 text-xs text-muted">
         Payments are handled securely by Stripe. Billing activates once Stripe keys are configured
         (see docs/SETUP.md).

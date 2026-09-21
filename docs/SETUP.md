@@ -211,6 +211,14 @@ not configured" on upgrade until these are set.
 after a test payment the plan flips to Pro (via the webhook) and the property
 cap lifts.
 
+The **same Stripe setup also powers online rent collection** — no extra keys or
+webhook. Turn it on per org in **Billing → Rent payments → "Accept rent payments
+online"**; tenants then get a **Pay now** button in their portal, and a
+successful payment auto-marks the matching ledger row **paid** (the
+`checkout.session.completed` webhook, distinguished by `metadata.kind = "rent"`).
+Rent is received into the platform Stripe account; per-landlord payouts (Stripe
+**Connect**) are future work for multi-landlord operation.
+
 ---
 
 ## Troubleshooting

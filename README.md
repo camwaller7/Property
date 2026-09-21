@@ -173,13 +173,18 @@ How the system knows rent is paid, and keeps status current:
 - **Manual confirmation** — "Mark paid" on any ledger row records receipt today
   and sets paid/late from the due date. The realistic path for a landlord who
   checks their bank.
+- **Online rent payment (built)** — the manager enables it per org (Billing →
+  Rent payments). Tenants get a **Pay now** button in the portal; it opens Stripe
+  Checkout (`/api/rent/checkout`, token-verified via `portal_payment_for_checkout`)
+  and on success the billing webhook auto-marks that exact ledger row **paid**
+  (`metadata.kind = "rent"`). Uses the same Stripe keys as billing; rent lands in
+  the platform Stripe account (Stripe **Connect** for per-landlord payouts is
+  future work).
 - **Reconciliation hook** — `reconcile_payment(property, amount, date, ref)`
   matches an incoming deposit (2% tolerance) to the earliest unpaid rent and
-  marks it paid. This is the integration point for **full automation**: either
-  collect rent through the app (Stripe BECS / GoCardless webhook → reconcile) or
-  a bank feed (Open Banking / CDR via Basiq → reconcile). Both are future work
-  requiring a payment/data provider; the hook is org-guarded for signed-in
-  callers and open to the service role for automated feeds.
+  marks it paid. The integration point for a **bank feed** (Open Banking / CDR via
+  Basiq → reconcile) as an alternative to collecting through the app; org-guarded
+  for signed-in callers, open to the service role for automated feeds.
 
 ## Security model (locked down)
 

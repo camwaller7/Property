@@ -39,6 +39,28 @@ export async function POST(req: Request) {
     switch (event.type) {
       case "checkout.session.completed": {
         const s = event.data.object as Stripe.Checkout.Session;
+
+        // Rent payment: mark the exact ledger row paid.
+        if (s.metadata?.kind === "rent" && s.metadata?.payment_id) {
+          const paymentId = s.metadata.payment_id;
+          await admin
+            .from("payments")
+            .update({ received_date: new Date().toISOString().slice(0, 10), status: "paid", paid_online: true })
+            .eq("id", paymentId);
+          if (s.metadata.org_id) {
+            await admin.from("notifications").insert({
+              org_id: s.metadata.org_id,
+              type: "rent_paid",
+              title: "Rent paid online",
+              body: `A tenant paid ${s.amount_total ? "$" + (s.amount_total / 100).toFixed(0) : "rent"} online.`,
+              link: "/app/properties",
+              entity_id: paymentId,
+            });
+          }
+          break;
+        }
+
+        // Otherwise: subscription upgrade.
         const orgId = s.client_reference_id || s.metadata?.org_id;
         if (orgId) {
           await setPlan(orgId, {

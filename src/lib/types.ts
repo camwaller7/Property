@@ -25,6 +25,7 @@ export interface Payment {
   amount: number | null;
   received_date: string | null;
   status: PaymentStatus;
+  paid_online?: boolean;
   created_at?: string;
 }
 
@@ -67,6 +68,7 @@ export interface Organization {
   plan: string;
   subscription_status: string | null;
   current_period_end: string | null;
+  rent_online_enabled?: boolean;
   created_at?: string;
 }
 

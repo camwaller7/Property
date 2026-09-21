@@ -26,6 +26,7 @@ interface Payload {
   tenancy: Tenancy;
   property: LoadedProperty | null;
   contact: Contact | null;
+  rent_online_enabled?: boolean;
   notices: Notice[];
   resources: PortalResource[];
   payments: Payment[];
@@ -67,6 +68,27 @@ export default function PortalPage() {
   const [notFound, setNotFound] = useState(false);
   const [data, setData] = useState<Payload | null>(null);
   const [resourceUrls, setResourceUrls] = useState<Record<string, string>>({});
+  const [paying, setPaying] = useState<string | null>(null);
+  const [payError, setPayError] = useState("");
+
+  async function payNow(paymentId: string) {
+    setPaying(paymentId);
+    setPayError("");
+    try {
+      const res = await fetch("/api/rent/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, paymentId }),
+      });
+      const json = await res.json();
+      if (!res.ok) setPayError(json.error || "Couldn't start payment.");
+      else if (json.url) window.location.assign(json.url);
+    } catch (e) {
+      setPayError(e instanceof Error ? e.message : "Couldn't start payment.");
+    } finally {
+      setPaying(null);
+    }
+  }
 
   const load = useCallback(async () => {
     const { data: res, error } = await supabase.rpc("portal_get", { p_token: token });
@@ -110,9 +132,10 @@ export default function PortalPage() {
 
   const { tenancy, property, contact, notices, resources, payments, requests } = data;
 
-  const upcomingPayment = payments
-    .filter((p) => p.status !== "paid" && p.due_date)
-    .sort((a, b) => (a.due_date || "").localeCompare(b.due_date || ""))[0];
+  const outstanding = payments
+    .filter((p) => p.status !== "paid" && !p.received_date && p.due_date)
+    .sort((a, b) => (a.due_date || "").localeCompare(b.due_date || ""));
+  const upcomingPayment = outstanding[0];
   const nextDue = upcomingPayment?.due_date || nextWeekdayDate(property?.rent_due_day);
   const rent = tenancy.weekly_rent ?? property?.weekly_rent ?? null;
   const recentPayments = payments
@@ -137,6 +160,32 @@ export default function PortalPage() {
           <Stat label="Due day" value={property?.rent_due_day || "—"} />
           <Stat label="Next due" value={nextDue ? fmtDate(nextDue) : "—"} />
         </div>
+
+        {data.rent_online_enabled && outstanding.length > 0 && (
+          <div className="mt-4 rounded-xl border border-border p-4">
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Pay rent</div>
+            <ul className="space-y-2">
+              {outstanding.slice(0, 4).map((p) => (
+                <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                  <span>
+                    {fmtMoney(p.amount)} <span className="text-xs text-muted">due {fmtDate(p.due_date)}</span>
+                    {p.status === "late" && <Badge tone="bad">Late</Badge>}
+                  </span>
+                  <button
+                    onClick={() => payNow(p.id)}
+                    disabled={paying === p.id}
+                    className="rounded-full bg-foreground px-4 py-1.5 text-xs font-medium text-background hover:opacity-80 disabled:opacity-50"
+                  >
+                    {paying === p.id ? "Starting…" : "Pay now"}
+                  </button>
+                </li>
+              ))}
+            </ul>
+            {payError && <p className="mt-2 text-sm text-bad">{payError}</p>}
+            <p className="mt-2 text-[11px] text-muted">Secure payment via Stripe.</p>
+          </div>
+        )}
+
         {recentPayments.length > 0 && (
           <div className="mt-4">
             <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Recent payments</div>
