@@ -39,35 +39,47 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid amount." }, { status: 400 });
   }
 
+  // Rent must be collected into the landlord's own connected Stripe account.
+  if (!data.stripe_account_id || !data.charges_enabled) {
+    return NextResponse.json(
+      { error: "Online rent isn't available for this property yet. Please contact your property manager." },
+      { status: 400 }
+    );
+  }
+
   const origin = req.headers.get("origin") || new URL(req.url).origin;
   const stripe = new Stripe(secret);
 
   try {
-    const session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      line_items: [
-        {
-          quantity: 1,
-          price_data: {
-            currency: "aud",
-            unit_amount: amountCents,
-            product_data: {
-              name: `Rent${data.address ? ` — ${data.address}` : ""}`,
-              description: data.due_date ? `Due ${data.due_date}` : undefined,
+    // Direct charge on the connected account — funds go to the landlord.
+    const session = await stripe.checkout.sessions.create(
+      {
+        mode: "payment",
+        line_items: [
+          {
+            quantity: 1,
+            price_data: {
+              currency: "aud",
+              unit_amount: amountCents,
+              product_data: {
+                name: `Rent${data.address ? ` — ${data.address}` : ""}`,
+                description: data.due_date ? `Due ${data.due_date}` : undefined,
+              },
             },
           },
+        ],
+        customer_email: data.tenant_email || undefined,
+        metadata: {
+          kind: "rent",
+          payment_id: body.paymentId,
+          org_id: data.org_id ?? "",
+          property_id: data.property_id ?? "",
         },
-      ],
-      customer_email: data.tenant_email || undefined,
-      metadata: {
-        kind: "rent",
-        payment_id: body.paymentId,
-        org_id: data.org_id ?? "",
-        property_id: data.property_id ?? "",
+        success_url: `${origin}/portal/${body.token}?paid=1`,
+        cancel_url: `${origin}/portal/${body.token}`,
       },
-      success_url: `${origin}/portal/${body.token}?paid=1`,
-      cancel_url: `${origin}/portal/${body.token}`,
-    });
+      { stripeAccount: data.stripe_account_id as string }
+    );
     return NextResponse.json({ url: session.url });
   } catch (e) {
     return NextResponse.json(

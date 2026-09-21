@@ -173,13 +173,14 @@ How the system knows rent is paid, and keeps status current:
 - **Manual confirmation** — "Mark paid" on any ledger row records receipt today
   and sets paid/late from the due date. The realistic path for a landlord who
   checks their bank.
-- **Online rent payment (built)** — the manager enables it per org (Billing →
-  Rent payments). Tenants get a **Pay now** button in the portal; it opens Stripe
-  Checkout (`/api/rent/checkout`, token-verified via `portal_payment_for_checkout`)
-  and on success the billing webhook auto-marks that exact ledger row **paid**
-  (`metadata.kind = "rent"`). Uses the same Stripe keys as billing; rent lands in
-  the platform Stripe account (Stripe **Connect** for per-landlord payouts is
-  future work).
+- **Online rent payment (built, Stripe Connect)** — each org connects its **own**
+  Stripe account (Billing → Connect Stripe → Express onboarding via
+  `/api/connect/start`; status tracked by the `account.updated` webhook). Once
+  connected and enabled, tenants get a **Pay now** button in the portal; rent
+  Checkout runs **on the landlord's connected account** (`/api/rent/checkout`,
+  token-verified), so funds go to the landlord — not the platform. On success the
+  webhook auto-marks that exact ledger row **paid**. The platform Stripe account
+  is used only for Pro subscriptions.
 - **Reconciliation hook** — `reconcile_payment(property, amount, date, ref)`
   matches an incoming deposit (2% tolerance) to the earliest unpaid rent and
   marks it paid. The integration point for a **bank feed** (Open Banking / CDR via
@@ -239,14 +240,22 @@ first account you create.
 Enable sign-ups and choose email confirmation under Supabase → Authentication —
 see `docs/SETUP.md`.
 
-### Teams (organizations)
+### Teams (organizations) & isolation
 
 Data is scoped by **organization**, not individual user. Every sign-up
 auto-creates an org (the user becomes its owner); RLS scopes all tables to
-`org_id in (my orgs)`, so an org's members share one workspace and no org can
-see another's data (verified server-side). Roles are `owner` / `admin` /
-`member`; admins manage the team and billing. Invite teammates from **Team**
-(`/app/team`) via a link they open at `/join/<token>` once signed in.
+`org_id in (my orgs)`, so an org's members share one workspace and **no org can
+see another's data** — verified server-side (user A's rows and files are
+invisible to user B). Roles are `owner` / `admin` / `member`; admins manage the
+team and billing. The **only** way another person gains access is a Team invite:
+from **Team** (`/app/team`) an admin generates a link the invitee opens at
+`/join/<token>` once signed in (`accept_invite`).
+
+**File isolation:** uploaded files are stored under an `<org_id>/…` path and
+storage RLS limits authenticated reads/writes to the caller's org (private
+buckets for ID docs and maintenance photos; public bucket only for
+non-sensitive handouts). Sensitive SECURITY DEFINER functions are restricted to
+the roles that should call them (e.g. `reconcile_payment` is not anon-callable).
 
 ### Billing (Stripe)
 

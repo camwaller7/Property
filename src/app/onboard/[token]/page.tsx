@@ -42,7 +42,7 @@ export default function OnboardPage() {
         setState({ phase: "notfound" });
         return;
       }
-      const app = data as TenantApplication & { property_address?: string | null };
+      const app = data as TenantApplication & { property_address?: string | null; org_id?: string | null };
       if (app.status === "submitted") {
         setState({ phase: "done", submitted: true, app });
         return;
@@ -144,7 +144,7 @@ function OnboardForm({
       for (const [kind, file] of Object.entries(files)) {
         if (!file) continue;
         const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-        const path = `${app.token}/${kind}-${Date.now()}-${safe}`;
+        const path = `${app.org_id ?? "org"}/${app.token}/${kind}-${Date.now()}-${safe}`;
         const up = await supabase.storage.from(BUCKET).upload(path, file, { upsert: true });
         if (up.error) throw new Error(`Couldn't upload ${file.name}: ${up.error.message}`);
         documents.push({ kind, name: file.name, path, size: file.size, uploaded_at: new Date().toISOString() });

@@ -23,6 +23,7 @@ interface Contact {
   email: string | null;
 }
 interface Payload {
+  org_id?: string | null;
   tenancy: Tenancy;
   property: LoadedProperty | null;
   contact: Contact | null;
@@ -220,6 +221,7 @@ export default function PortalPage() {
       {/* Maintenance */}
       <MaintenanceCard
         token={token}
+        orgId={data.org_id ?? null}
         requests={requests}
         onSubmitted={load}
         managerEmail={contact?.email ?? null}
@@ -299,6 +301,7 @@ export default function PortalPage() {
 
 function MaintenanceCard({
   token,
+  orgId,
   requests,
   onSubmitted,
   managerEmail,
@@ -306,6 +309,7 @@ function MaintenanceCard({
   tenantName,
 }: {
   token: string;
+  orgId: string | null;
   requests: MaintenanceRequest[];
   onSubmitted: () => Promise<void>;
   managerEmail: string | null;
@@ -333,7 +337,7 @@ function MaintenanceCard({
       let photoPath: string | null = null;
       if (file) {
         const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-        photoPath = `${token}/${Date.now()}-${safe}`;
+        photoPath = `${orgId ?? "org"}/${token}/${Date.now()}-${safe}`;
         const up = await supabase.storage.from(PHOTO_BUCKET).upload(photoPath, file, { upsert: true });
         if (up.error) throw new Error(up.error.message);
       }

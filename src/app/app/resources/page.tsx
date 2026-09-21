@@ -8,7 +8,7 @@ import { usePortfolio } from "@/lib/portfolio";
 const BUCKET = "tenant-resources";
 
 export default function ResourcesPage() {
-  const { properties, resources, addResource, deleteResource, loading } = usePortfolio();
+  const { properties, resources, addResource, deleteResource, loading, org } = usePortfolio();
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -33,7 +33,7 @@ export default function ResourcesPage() {
       let path: string | null = null;
       if (file) {
         const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-        path = `resources/${Date.now()}-${safe}`;
+        path = `${org?.id ?? "org"}/resources/${Date.now()}-${safe}`;
         const up = await supabase.storage.from(BUCKET).upload(path, file, { upsert: true });
         if (up.error) throw new Error(up.error.message);
       }

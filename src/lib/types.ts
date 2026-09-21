@@ -71,6 +71,8 @@ export interface Organization {
   current_period_end: string | null;
   rent_online_enabled?: boolean;
   default_state?: string | null;
+  stripe_account_id?: string | null;
+  stripe_charges_enabled?: boolean;
   created_at?: string;
 }
 
@@ -179,6 +181,7 @@ export type ApplicationStatus = "invited" | "submitted";
 export interface TenantApplication {
   id: string;
   tenancy_id: string | null;
+  org_id?: string | null;
   token: string;
   status: ApplicationStatus;
   data: Record<string, unknown>;

@@ -211,13 +211,23 @@ not configured" on upgrade until these are set.
 after a test payment the plan flips to Pro (via the webhook) and the property
 cap lifts.
 
-The **same Stripe setup also powers online rent collection** — no extra keys or
-webhook. Turn it on per org in **Billing → Rent payments → "Accept rent payments
-online"**; tenants then get a **Pay now** button in their portal, and a
-successful payment auto-marks the matching ledger row **paid** (the
-`checkout.session.completed` webhook, distinguished by `metadata.kind = "rent"`).
-Rent is received into the platform Stripe account; per-landlord payouts (Stripe
-**Connect**) are future work for multi-landlord operation.
+**Online rent collection uses Stripe Connect** so each landlord is paid into
+their own account (the platform account is only for Pro subscriptions):
+
+1. Enable **Connect** in your Stripe dashboard (Express accounts).
+2. Add the webhook events `account.updated` and (already there)
+   `checkout.session.completed` to the same `/api/billing/webhook` endpoint.
+3. In the app: **Billing → Connect Stripe** → the landlord completes Stripe
+   Express onboarding → status shows **Connected** → then tick **Accept rent
+   payments online**. Tenants get **Pay now** in their portal; funds go to the
+   landlord and the matching ledger row is auto-marked **paid**.
+
+### Recommended dashboard security toggles
+
+- **Authentication → enable "Leaked password protection"** (checks HaveIBeenPwned).
+- A leftover `notify_manager` database function (points at a hardcoded Zapier
+  hook) has been locked down (no anon/authenticated execute). If you don't use
+  it, drop it; the app sends email via `/api/email`, not this.
 
 ---
 

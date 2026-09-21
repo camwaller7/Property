@@ -72,6 +72,16 @@ export async function POST(req: Request) {
         }
         break;
       }
+      case "account.updated": {
+        // Connected account (Stripe Connect) status changed — track whether the
+        // landlord can accept charges yet.
+        const acct = event.data.object as Stripe.Account;
+        await admin
+          .from("organizations")
+          .update({ stripe_charges_enabled: !!acct.charges_enabled })
+          .eq("stripe_account_id", acct.id);
+        break;
+      }
       case "customer.subscription.updated":
       case "customer.subscription.deleted": {
         const sub = event.data.object as Stripe.Subscription;
