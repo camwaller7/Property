@@ -79,21 +79,30 @@ landing page, and visiting `/app` shows the **manager sign-in** screen.
 ### Task 1b — Auth settings (public sign-up)
 
 The workspace uses real Supabase Auth, and **anyone can now create their own
-account** to track their own properties. Each account is fully isolated — RLS
-scopes every table to `owner_id = auth.uid()` (verified server-side), so users
-only ever see their own data.
+account** to track their own properties. Each account gets its own organization
+and data is isolated per org — RLS scopes every table to the caller's org
+(verified server-side), so users only ever see their own data.
 
 1. Supabase dashboard → project `tioeqxdulxqiptlszldp` → **Authentication →
    Sign In / Providers** → ensure **Email** is enabled and **"Allow new users to
    sign up" is ON**.
-2. **Email confirmation:** your choice.
+   - **Redirect URLs** (Authentication → URL Configuration) must allow the auth
+     callback route. A wildcard like `https://<your-domain>/**` (and
+     `https://*-<team>.vercel.app/**` for previews) covers `/auth/callback` and
+     `/auth/reset`. Set **Site URL** to the production domain (not localhost).
+2. **Sign-in options:** the login screen supports password, **magic link**, and
+   **password reset**. All email links redirect (at runtime, via
+   `window.location.origin`) to `/auth/callback`, which hydrates the session and
+   routes into `/app` (reset links go to `/auth/reset` to set a new password).
+   No localhost is hardcoded anywhere.
+3. **Email confirmation:** your choice.
    - *On* (recommended for production) — new users must click a confirmation link
      before signing in. The app already handles this (shows "check your email").
      Note Supabase's built-in email is rate-limited; for volume, configure your
      own SMTP under Authentication → Emails.
    - *Off* (fastest for testing) — Authentication → Providers → Email → disable
      "Confirm email"; sign-ups log in immediately.
-3. Your **own company account** is just the first account you create (via the
+4. Your **own company account** is just the first account you create (via the
    landing page "Create your free account", or Authentication → Users → Add user
    with Auto Confirm). Your managed portfolio lives under it.
 

@@ -113,7 +113,11 @@ function LoginScreen() {
       if (error) setErr(error.message);
       // On success, onAuthStateChange swaps this screen for the workspace.
     } else {
-      const { data, error } = await supabase.auth.signUp({ email, password });
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+      });
       if (error) setErr(error.message);
       else if (!data.session) {
         // Email confirmation is required — no session yet.
@@ -123,6 +127,45 @@ function LoginScreen() {
       // If a session came back, onAuthStateChange logs them straight in.
     }
     setBusy(false);
+  }
+
+  // Runtime redirect target so email links work in dev, preview and production
+  // without hardcoding — points at the callback route that hydrates the session.
+  function callbackUrl() {
+    return `${window.location.origin}/auth/callback`;
+  }
+
+  async function sendMagicLink() {
+    if (!email) {
+      setErr("Enter your email first.");
+      return;
+    }
+    setBusy(true);
+    setErr("");
+    setNotice("");
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: callbackUrl() },
+    });
+    setBusy(false);
+    if (error) setErr(error.message);
+    else setNotice("Magic link sent — check your email to sign in.");
+  }
+
+  async function sendReset() {
+    if (!email) {
+      setErr("Enter your email first, then tap reset.");
+      return;
+    }
+    setBusy(true);
+    setErr("");
+    setNotice("");
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: callbackUrl(),
+    });
+    setBusy(false);
+    if (error) setErr(error.message);
+    else setNotice("Password reset email sent — check your inbox.");
   }
 
   return (
@@ -157,13 +200,25 @@ function LoginScreen() {
         </button>
         {notice && <p className="mt-3 text-center text-sm text-good">{notice}</p>}
         <p className="mt-2 min-h-[18px] text-center text-sm text-bad">{err}</p>
+
+        {mode === "signin" && (
+          <div className="mt-3 flex items-center justify-center gap-4 text-sm">
+            <button onClick={sendMagicLink} disabled={busy} className="text-accent hover:underline disabled:opacity-50">
+              Email me a magic link
+            </button>
+            <button onClick={sendReset} disabled={busy} className="text-muted hover:text-foreground disabled:opacity-50">
+              Forgot password?
+            </button>
+          </div>
+        )}
+
         <button
           onClick={() => {
             setMode(mode === "signin" ? "signup" : "signin");
             setErr("");
             setNotice("");
           }}
-          className="mt-2 w-full text-center text-sm text-muted hover:text-foreground"
+          className="mt-3 w-full text-center text-sm text-muted hover:text-foreground"
         >
           {mode === "signin"
             ? "New here? Create an account"
