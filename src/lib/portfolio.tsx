@@ -12,6 +12,8 @@ import {
 import { supabase } from "./supabase";
 import type {
   Inspection,
+  MaintenanceRequest,
+  MaintenanceStatus,
   Notice,
   OnboardingItem,
   Organization,
@@ -39,6 +41,7 @@ interface PortfolioContextValue {
   applications: TenantApplication[];
   notices: Notice[];
   resources: PortalResource[];
+  maintenance: MaintenanceRequest[];
   org: Organization | null;
   members: OrgMember[];
   myRole: OrgRole | null;
@@ -50,6 +53,7 @@ interface PortfolioContextValue {
   updateOrgName: (name: string) => Promise<{ error?: string }>;
   createInvite: (role: OrgRole) => Promise<{ token?: string; error?: string }>;
   removeMember: (userId: string) => Promise<{ error?: string }>;
+  updateRequestStatus: (id: string, status: MaintenanceStatus) => Promise<{ error?: string }>;
   saveProperty: (data: PropertyInput, id?: string) => Promise<{ error?: string }>;
   addPayment: (
     propertyId: string,
@@ -76,6 +80,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   const [applications, setApplications] = useState<TenantApplication[]>([]);
   const [notices, setNotices] = useState<Notice[]>([]);
   const [resources, setResources] = useState<PortalResource[]>([]);
+  const [maintenance, setMaintenance] = useState<MaintenanceRequest[]>([]);
   const [org, setOrg] = useState<Organization | null>(null);
   const [members, setMembers] = useState<OrgMember[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
@@ -129,6 +134,12 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       .select("*")
       .order("created_at", { ascending: false });
     setResources((rsrc as PortalResource[]) || []);
+
+    const { data: maint } = await supabase
+      .from("maintenance_requests")
+      .select("*")
+      .order("created_at", { ascending: false });
+    setMaintenance((maint as MaintenanceRequest[]) || []);
 
     // Organization context (current user's org + team).
     const { data: userData } = await supabase.auth.getUser();
@@ -360,6 +371,19 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     [org, reload]
   );
 
+  const updateRequestStatus = useCallback(
+    async (id: string, status: MaintenanceStatus) => {
+      const res = await supabase
+        .from("maintenance_requests")
+        .update({ status, resolved_at: status === "resolved" ? new Date().toISOString() : null })
+        .eq("id", id);
+      if (res.error) return { error: res.error.message };
+      await reload();
+      return {};
+    },
+    [reload]
+  );
+
   const myRole: OrgRole | null =
     members.find((m) => m.user_id === userId)?.role ?? null;
 
@@ -376,6 +400,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     applications,
     notices,
     resources,
+    maintenance,
     org,
     members,
     myRole,
@@ -387,6 +412,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     updateOrgName,
     createInvite,
     removeMember,
+    updateRequestStatus,
     saveProperty,
     addPayment,
     saveTenancy,

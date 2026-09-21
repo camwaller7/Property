@@ -1,26 +1,54 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { brand } from "@/lib/brand";
 import Badge from "@/components/ui/Badge";
+import { Field, Select, Textarea } from "@/components/app/Field";
 import { fmtDate, fmtMoney, nextWeekdayDate } from "@/lib/format";
-import type { Notice, Payment, PortalResource, Tenancy } from "@/lib/types";
+import type { MaintenanceRequest, Notice, Payment, PortalResource, Tenancy } from "@/lib/types";
 
 const RESOURCE_BUCKET = "tenant-resources";
+const PHOTO_BUCKET = "maintenance-photos";
+const CATEGORIES = ["Plumbing", "Electrical", "Appliance", "Heating/Cooling", "General", "Other"];
 
 interface LoadedProperty {
   address: string | null;
   weekly_rent: number | null;
   rent_due_day: string | null;
 }
+interface Contact {
+  org: string | null;
+  email: string | null;
+}
+interface Payload {
+  tenancy: Tenancy;
+  property: LoadedProperty | null;
+  contact: Contact | null;
+  notices: Notice[];
+  resources: PortalResource[];
+  payments: Payment[];
+  requests: MaintenanceRequest[];
+}
 
-const categoryTone: Record<string, "good" | "bad" | "warn" | "neutral"> = {
+const noticeTone: Record<string, "good" | "bad" | "warn" | "neutral"> = {
   rent: "warn",
   bill: "warn",
   maintenance: "neutral",
   info: "neutral",
+};
+const statusTone: Record<string, "good" | "bad" | "warn" | "neutral"> = {
+  open: "warn",
+  in_progress: "neutral",
+  resolved: "good",
+  cancelled: "neutral",
+};
+const statusLabel: Record<string, string> = {
+  open: "Open",
+  in_progress: "In progress",
+  resolved: "Resolved",
+  cancelled: "Cancelled",
 };
 
 export default function PortalPage() {
@@ -29,56 +57,41 @@ export default function PortalPage() {
 
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  const [tenancy, setTenancy] = useState<Tenancy | null>(null);
-  const [property, setProperty] = useState<LoadedProperty | null>(null);
-  const [notices, setNotices] = useState<Notice[]>([]);
-  const [resources, setResources] = useState<PortalResource[]>([]);
-  const [payments, setPayments] = useState<Payment[]>([]);
+  const [data, setData] = useState<Payload | null>(null);
   const [resourceUrls, setResourceUrls] = useState<Record<string, string>>({});
+
+  const load = useCallback(async () => {
+    const { data: res, error } = await supabase.rpc("portal_get", { p_token: token });
+    if (error || !res) {
+      setNotFound(true);
+      setLoading(false);
+      return;
+    }
+    const payload = res as Payload;
+    setData(payload);
+    setLoading(false);
+    const urls: Record<string, string> = {};
+    for (const r of payload.resources || []) {
+      if (r.path) {
+        const { data: pub } = supabase.storage.from(RESOURCE_BUCKET).getPublicUrl(r.path);
+        if (pub) urls[r.id] = pub.publicUrl;
+      }
+    }
+    setResourceUrls(urls);
+  }, [token]);
 
   useEffect(() => {
     let active = true;
-    (async () => {
-      // Token-scoped RPC (SECURITY DEFINER): returns only this tenant's data.
-      const { data, error } = await supabase.rpc("portal_get", { p_token: token });
-      if (!active) return;
-      if (error || !data) {
-        setNotFound(true);
-        setLoading(false);
-        return;
-      }
-      const payload = data as {
-        tenancy: Tenancy;
-        property: LoadedProperty | null;
-        notices: Notice[];
-        resources: PortalResource[];
-        payments: Payment[];
-      };
-      setTenancy(payload.tenancy);
-      setProperty(payload.property ?? null);
-      setNotices(payload.notices || []);
-      const rsrc = payload.resources || [];
-      setResources(rsrc);
-      setPayments(payload.payments || []);
-      setLoading(false);
-
-      // Handouts live in a public bucket — resolve direct public URLs.
-      const urls: Record<string, string> = {};
-      for (const r of rsrc) {
-        if (r.path) {
-          const { data: pub } = supabase.storage.from(RESOURCE_BUCKET).getPublicUrl(r.path);
-          if (pub) urls[r.id] = pub.publicUrl;
-        }
-      }
-      if (active) setResourceUrls(urls);
-    })();
+    Promise.resolve().then(() => {
+      if (active) load();
+    });
     return () => {
       active = false;
     };
-  }, [token]);
+  }, [load]);
 
   if (loading) return <Centered>Loading your portal…</Centered>;
-  if (notFound || !tenancy) {
+  if (notFound || !data) {
     return (
       <Centered>
         <h1 className="text-2xl font-semibold tracking-tight">Portal not found</h1>
@@ -87,13 +100,13 @@ export default function PortalPage() {
     );
   }
 
-  // Next rent due: earliest unpaid due date, else next occurrence of the due day.
+  const { tenancy, property, contact, notices, resources, payments, requests } = data;
+
   const upcomingPayment = payments
     .filter((p) => p.status !== "paid" && p.due_date)
     .sort((a, b) => (a.due_date || "").localeCompare(b.due_date || ""))[0];
   const nextDue = upcomingPayment?.due_date || nextWeekdayDate(property?.rent_due_day);
   const rent = tenancy.weekly_rent ?? property?.weekly_rent ?? null;
-
   const recentPayments = payments
     .slice()
     .sort((a, b) => (b.due_date || "").localeCompare(a.due_date || ""))
@@ -136,6 +149,20 @@ export default function PortalPage() {
         )}
       </Card>
 
+      {/* Lease & bond */}
+      <Card title="Lease & bond">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <Stat label="Lease start" value={fmtDate(tenancy.lease_start)} />
+          <Stat label="Lease end" value={fmtDate(tenancy.lease_end)} />
+          <Stat label="Move-in" value={fmtDate(tenancy.move_in_date)} />
+          <Stat label="Bond" value={fmtMoney(tenancy.bond_amount)} />
+          <Stat label="Bond lodged" value={tenancy.bond_lodged ? "Yes" : "Not yet"} />
+        </div>
+      </Card>
+
+      {/* Maintenance */}
+      <MaintenanceCard token={token} requests={requests} onSubmitted={load} />
+
       {/* Notices */}
       <Card title="Notices & reminders">
         {notices.length === 0 ? (
@@ -147,7 +174,7 @@ export default function PortalPage() {
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="font-medium">{n.title}</span>
                   <span className="flex items-center gap-2">
-                    <Badge tone={categoryTone[n.category] || "neutral"}>{n.category}</Badge>
+                    <Badge tone={noticeTone[n.category] || "neutral"}>{n.category}</Badge>
                     {n.due_date && <span className="text-xs text-muted">Due {fmtDate(n.due_date)}</span>}
                   </span>
                 </div>
@@ -186,10 +213,155 @@ export default function PortalPage() {
         )}
       </Card>
 
-      <p className="mt-8 text-xs text-muted">
-        Questions? Contact your property manager. Powered by {brand.name}.
-      </p>
+      {/* Contact */}
+      <Card title="Your property manager">
+        <div className="text-sm">
+          <div className="font-medium">{contact?.org || brand.full}</div>
+          {contact?.email && (
+            <a href={`mailto:${contact.email}`} className="text-accent hover:underline">
+              {contact.email}
+            </a>
+          )}
+          {tenancy.emergency_contact && (
+            <div className="mt-2 text-muted">Emergency contact: {tenancy.emergency_contact}</div>
+          )}
+        </div>
+      </Card>
+
+      <p className="mt-8 text-xs text-muted">Powered by {brand.name}.</p>
     </div>
+  );
+}
+
+function MaintenanceCard({
+  token,
+  requests,
+  onSubmitted,
+}: {
+  token: string;
+  requests: MaintenanceRequest[];
+  onSubmitted: () => Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [category, setCategory] = useState("General");
+  const [urgency, setUrgency] = useState("normal");
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [file, setFile] = useState<File | undefined>();
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  async function submit() {
+    if (!title.trim()) {
+      setMsg("Please add a short title.");
+      return;
+    }
+    setBusy(true);
+    setMsg("");
+    try {
+      let photoPath: string | null = null;
+      if (file) {
+        const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+        photoPath = `${token}/${Date.now()}-${safe}`;
+        const up = await supabase.storage.from(PHOTO_BUCKET).upload(photoPath, file, { upsert: true });
+        if (up.error) throw new Error(up.error.message);
+      }
+      const { data: res, error } = await supabase.rpc("portal_submit_request", {
+        p_token: token,
+        p_category: category,
+        p_title: title.trim(),
+        p_description: description.trim() || null,
+        p_urgency: urgency,
+        p_photo_path: photoPath,
+      });
+      if (error) throw new Error(error.message);
+      if (res?.error) throw new Error("Couldn't submit — please contact your manager.");
+      setTitle("");
+      setDescription("");
+      setFile(undefined);
+      setCategory("General");
+      setUrgency("normal");
+      setOpen(false);
+      setMsg("Request submitted ✓");
+      await onSubmitted();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Something went wrong.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card title="Maintenance requests">
+      <div className="mb-4 flex items-center justify-between">
+        <p className="text-sm text-muted">Report a repair or issue at the property.</p>
+        <button
+          onClick={() => setOpen((o) => !o)}
+          className="rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background hover:opacity-80"
+        >
+          {open ? "Close" : "New request"}
+        </button>
+      </div>
+
+      {open && (
+        <div className="mb-4 rounded-xl border border-border p-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Select label="Category" value={category} onChange={(e) => setCategory(e.target.value)}>
+              {CATEGORIES.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </Select>
+            <Select label="Urgency" value={urgency} onChange={(e) => setUrgency(e.target.value)}>
+              <option value="low">Low</option>
+              <option value="normal">Normal</option>
+              <option value="urgent">Urgent</option>
+            </Select>
+            <Field label="Title" className="sm:col-span-2" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Kitchen tap dripping" />
+            <Textarea label="Description" className="sm:col-span-2" value={description} onChange={(e) => setDescription(e.target.value)} />
+          </div>
+          <div className="mt-3">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">Photo (optional)</span>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setFile(e.target.files?.[0])}
+              className="block w-full text-sm text-muted file:mr-3 file:rounded-full file:border-0 file:bg-foreground file:px-4 file:py-2 file:text-sm file:font-medium file:text-background"
+            />
+          </div>
+          <button
+            onClick={submit}
+            disabled={busy}
+            className="mt-3 rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-background hover:opacity-80 disabled:opacity-50"
+          >
+            {busy ? "Submitting…" : "Submit request"}
+          </button>
+        </div>
+      )}
+
+      {msg && <p className="mb-3 text-sm text-muted">{msg}</p>}
+
+      {requests.length === 0 ? (
+        <p className="text-sm text-muted">No requests yet.</p>
+      ) : (
+        <ul className="space-y-2">
+          {requests.map((r) => (
+            <li key={r.id} className="rounded-xl border border-border p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-sm font-medium">
+                  {r.title} <span className="text-xs text-muted">· {r.category}</span>
+                </span>
+                <span className="flex items-center gap-2">
+                  {r.urgency === "urgent" && <Badge tone="bad">Urgent</Badge>}
+                  <Badge tone={statusTone[r.status] || "neutral"}>{statusLabel[r.status] || r.status}</Badge>
+                </span>
+              </div>
+              {r.description && <p className="mt-1 text-sm text-muted">{r.description}</p>}
+              <p className="mt-1 text-xs text-muted">Submitted {fmtDate(r.created_at)}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
   );
 }
 

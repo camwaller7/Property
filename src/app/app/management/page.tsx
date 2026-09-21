@@ -6,6 +6,7 @@ import Modal from "@/components/ui/Modal";
 import Badge from "@/components/ui/Badge";
 import TenancyCard from "@/components/app/TenancyCard";
 import TenancyForm from "@/components/app/TenancyForm";
+import MaintenanceManager from "@/components/app/MaintenanceManager";
 import { usePortfolio } from "@/lib/portfolio";
 import type { Tenancy } from "@/lib/types";
 import { daysUntil, fmtDate } from "@/lib/format";
@@ -64,6 +65,8 @@ export default function ManagementPage() {
         </div>
       ) : (
         <>
+          <MaintenanceManager />
+
           {upcomingInspections.length > 0 && (
             <section className="mb-8 rounded-2xl border border-border p-5">
               <h2 className="mb-3 text-lg font-semibold tracking-tight">Upcoming inspections</h2>

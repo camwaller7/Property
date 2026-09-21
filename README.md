@@ -131,11 +131,19 @@ The Management workspace (`/app/management`) is live and usable end-to-end:
   open documents via short-lived signed URLs, and generate a **prefilled
   Residential Tenancy Agreement + Tenant Handbook** (print / save as PDF) at
   `/app/management/documents/[id]`.
+- **Tenant portal** — enable a secure per-tenancy portal (`/portal/[token]`,
+  no login) where the tenant sees rent + next-due + payment history, lease &
+  bond summary, notices/reminders you post, shared documents & handouts, and
+  their property manager's contact. Tenants **submit maintenance requests**
+  (category, urgency, description, optional photo) and track their status; the
+  manager works them from a **Maintenance requests** panel on `/app/management`
+  (status control + photo view). All portal reads/writes go through token-scoped
+  `SECURITY DEFINER` RPCs (`portal_get`, `portal_submit_request`).
 
-Backed by additive tables (`tenancies`, `inspections`, `tenant_applications`)
-and a private `tenant-documents` storage bucket; see `supabase/migrations/`. SA
-rules live in `src/lib/sa-rules.ts`; the application schema in
-`src/lib/application-schema.ts`.
+Backed by additive tables (`tenancies`, `inspections`, `tenant_applications`,
+`notices`, `portal_resources`, `maintenance_requests`) and private storage
+buckets; see `supabase/migrations/`. SA rules live in `src/lib/sa-rules.ts`; the
+application schema in `src/lib/application-schema.ts`.
 
 ## Security model (locked down)
 

@@ -87,6 +87,24 @@ export interface OrgInvite {
   accepted_at: string | null;
 }
 
+export type MaintenanceStatus = "open" | "in_progress" | "resolved" | "cancelled";
+export type MaintenanceUrgency = "low" | "normal" | "urgent";
+
+export interface MaintenanceRequest {
+  id: string;
+  org_id: string | null;
+  tenancy_id: string | null;
+  property_id: string | null;
+  category: string;
+  title: string;
+  description: string | null;
+  urgency: MaintenanceUrgency;
+  status: MaintenanceStatus;
+  photo_path: string | null;
+  created_at?: string;
+  resolved_at: string | null;
+}
+
 export type NoticeCategory = "rent" | "bill" | "maintenance" | "info";
 
 export interface Notice {
