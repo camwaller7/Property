@@ -29,6 +29,7 @@ function blank(propertyId: string): TenancyInput {
     bond_lodged: false,
     bond_reference: "",
     status: "upcoming",
+    rent_frequency: "weekly",
     onboarding: defaultOnboarding(),
     notes: "",
     portal_token: null,
@@ -117,6 +118,15 @@ export default function TenancyForm({
 
         <Field label="Move-in date" type="date" value={form.move_in_date ?? ""} onChange={(e) => set("move_in_date", e.target.value || null)} />
         <Field label="Weekly rent ($)" type="number" value={form.weekly_rent ?? ""} onChange={(e) => set("weekly_rent", e.target.value === "" ? null : Number(e.target.value))} />
+        <Select
+          label="Rent frequency"
+          value={form.rent_frequency}
+          onChange={(e) => set("rent_frequency", e.target.value as Tenancy["rent_frequency"])}
+        >
+          <option value="weekly">Weekly</option>
+          <option value="fortnightly">Fortnightly</option>
+          <option value="monthly">Monthly</option>
+        </Select>
         <Field label="Lease start" type="date" value={form.lease_start ?? ""} onChange={(e) => set("lease_start", e.target.value || null)} />
         <Field label="Lease end" type="date" value={form.lease_end ?? ""} onChange={(e) => set("lease_end", e.target.value || null)} />
 

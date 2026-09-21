@@ -52,6 +52,7 @@ export interface Tenancy {
   bond_lodged: boolean;
   bond_reference: string | null;
   status: TenancyStatus;
+  rent_frequency: "weekly" | "fortnightly" | "monthly";
   onboarding: OnboardingItem[];
   notes: string | null;
   portal_token: string | null;

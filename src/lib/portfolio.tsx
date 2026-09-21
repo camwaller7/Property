@@ -64,6 +64,7 @@ interface PortfolioContextValue {
     propertyId: string,
     input: { due_date: string; amount: number; received_date: string | null }
   ) => Promise<{ error?: string }>;
+  markPaymentReceived: (paymentId: string, receivedDate: string) => Promise<{ error?: string }>;
   saveTenancy: (data: TenancyInput, id?: string) => Promise<{ error?: string }>;
   setOnboarding: (tenancyId: string, items: OnboardingItem[]) => Promise<{ error?: string }>;
   saveInspection: (data: InspectionInput, id?: string) => Promise<{ error?: string }>;
@@ -227,16 +228,42 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     [reload]
   );
 
+  // Confirm a due/late payment as received (manual reconciliation). Status is
+  // derived from the received date vs. the due date.
+  const markPaymentReceived = useCallback(
+    async (paymentId: string, receivedDate: string) => {
+      let dueDate: string | null = null;
+      for (const list of Object.values(paymentsByProperty)) {
+        const p = list.find((x) => x.id === paymentId);
+        if (p) {
+          dueDate = p.due_date;
+          break;
+        }
+      }
+      const status: Payment["status"] = dueDate && receivedDate > dueDate ? "late" : "paid";
+      const res = await supabase
+        .from("payments")
+        .update({ received_date: receivedDate, status })
+        .eq("id", paymentId);
+      if (res.error) return { error: res.error.message };
+      await reload();
+      return {};
+    },
+    [reload, paymentsByProperty]
+  );
+
   const saveTenancy = useCallback(
     async (data: TenancyInput, id?: string) => {
       const res = id
         ? await supabase.from("tenancies").update(data).eq("id", id)
         : await supabase.from("tenancies").insert(data);
       if (res.error) return { error: res.error.message };
+      // Populate the expected rent schedule for this org right away.
+      if (org?.id) await supabase.rpc("generate_rent_schedule", { p_org: org.id });
       await reload();
       return {};
     },
-    [reload]
+    [reload, org]
   );
 
   const setOnboarding = useCallback(
@@ -484,6 +511,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     markNotificationsRead,
     saveProperty,
     addPayment,
+    markPaymentReceived,
     saveTenancy,
     setOnboarding,
     saveInspection,

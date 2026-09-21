@@ -157,9 +157,29 @@ application schema in `src/lib/application-schema.ts`.
   maintenance request or completing an onboarding application (written inside the
   token RPCs). Maintenance submissions also fire a **best-effort manager email**
   through the existing Zapier hook — no extra setup beyond `ZAPIER_EMAIL_WEBHOOK_URL`.
-- **Scheduled reminders**: a daily `pg_cron` job (`daily-reminders`, 22:00 UTC)
-  runs `generate_reminders()`, adding feed entries for rent due/overdue, lease
+- **Scheduled reminders**: a daily `pg_cron` job (`daily-ops`, 22:00 UTC) runs
+  `run_daily()`, which also feeds the notification list — rent due/overdue, lease
   expiries (≤30 days) and upcoming inspections (≤7 days), deduped.
+
+### Rent status & reconciliation
+
+How the system knows rent is paid, and keeps status current:
+
+- **Auto-generated schedule** — from each tenancy's lease anchor + `rent_frequency`
+  (weekly / fortnightly / monthly), `generate_rent_schedule()` creates the
+  expected `payments` rows (recent history + ~2 weeks ahead), deduped. It runs
+  daily and immediately when a tenancy is saved, so the ledger fills itself.
+- **Auto-overdue** — `mark_overdue()` flips unpaid past-due rent to `late` daily.
+- **Manual confirmation** — "Mark paid" on any ledger row records receipt today
+  and sets paid/late from the due date. The realistic path for a landlord who
+  checks their bank.
+- **Reconciliation hook** — `reconcile_payment(property, amount, date, ref)`
+  matches an incoming deposit (2% tolerance) to the earliest unpaid rent and
+  marks it paid. This is the integration point for **full automation**: either
+  collect rent through the app (Stripe BECS / GoCardless webhook → reconcile) or
+  a bank feed (Open Banking / CDR via Basiq → reconcile). Both are future work
+  requiring a payment/data provider; the hook is org-guarded for signed-in
+  callers and open to the service role for automated feeds.
 
 ## Security model (locked down)
 

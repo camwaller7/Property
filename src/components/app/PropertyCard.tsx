@@ -40,7 +40,7 @@ export default function PropertyCard({
   property: Property;
   onEdit: (p: Property) => void;
 }) {
-  const { paymentsByProperty, addPayment } = usePortfolio();
+  const { paymentsByProperty, addPayment, markPaymentReceived } = usePortfolio();
   const [open, setOpen] = useState(false);
   const [due, setDue] = useState("");
   const [amount, setAmount] = useState(property.weekly_rent != null ? String(property.weekly_rent) : "");
@@ -124,12 +124,13 @@ export default function PropertyCard({
                   <th className="px-3 py-2 font-semibold">Amount</th>
                   <th className="px-3 py-2 font-semibold">Received</th>
                   <th className="px-3 py-2 font-semibold">Status</th>
+                  <th className="px-3 py-2 font-semibold"></th>
                 </tr>
               </thead>
               <tbody>
                 {payments.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-3 py-4 text-muted">
+                    <td colSpan={5} className="px-3 py-4 text-muted">
                       No payments logged yet.
                     </td>
                   </tr>
@@ -145,6 +146,16 @@ export default function PropertyCard({
                         >
                           {pay.status[0].toUpperCase() + pay.status.slice(1)}
                         </Badge>
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        {!pay.received_date && (
+                          <button
+                            onClick={() => markPaymentReceived(pay.id, new Date().toISOString().slice(0, 10))}
+                            className="rounded-full border border-border px-3 py-1 text-xs font-medium hover:bg-surface"
+                          >
+                            Mark paid
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))
