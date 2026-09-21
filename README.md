@@ -169,13 +169,30 @@ first account you create.
 Enable sign-ups and choose email confirmation under Supabase → Authentication —
 see `docs/SETUP.md`.
 
+### Teams (organizations)
+
+Data is scoped by **organization**, not individual user. Every sign-up
+auto-creates an org (the user becomes its owner); RLS scopes all tables to
+`org_id in (my orgs)`, so an org's members share one workspace and no org can
+see another's data (verified server-side). Roles are `owner` / `admin` /
+`member`; admins manage the team and billing. Invite teammates from **Team**
+(`/app/team`) via a link they open at `/join/<token>` once signed in.
+
+### Billing (Stripe)
+
+Plans live on the organization (`free` / `pro`). Free is capped (3 properties);
+Pro is unlimited. The **Billing** page (`/app/billing`) starts Stripe Checkout
+via `/api/billing/checkout`, and `/api/billing/webhook` (verified by signature,
+writing with the service-role key) keeps the plan in sync. Both are env-gated —
+see `docs/SETUP.md` Task 5. Until Stripe keys are set, everything works on the
+free plan.
+
 ### Future hardening
 
-- **Teams/org accounts** — today one account = one owner. Multi-user orgs (staff
-  under one company, roles/permissions) would add an `org_id` layer above
-  `owner_id`.
-- **Per-owner storage scoping** — uploaded files are protected by unguessable
-  paths + private buckets; tightening storage RLS to the owner is a follow-up.
+- **Per-org storage scoping** — uploaded files are protected by unguessable
+  paths + private buckets; tightening storage RLS to the org is a follow-up.
+- **Multi-org membership / org switching** — the schema supports a user being in
+  several orgs; the UI currently uses their first org as active.
 
 ## Roadmap
 - **Renovations** — receipt capture, tax categorisation, cost-vs-value, accountant export.

@@ -58,6 +58,35 @@ export interface Tenancy {
   created_at?: string;
 }
 
+export type OrgRole = "owner" | "admin" | "member";
+
+export interface Organization {
+  id: string;
+  name: string;
+  plan: string;
+  subscription_status: string | null;
+  current_period_end: string | null;
+  created_at?: string;
+}
+
+export interface OrgMember {
+  org_id: string;
+  user_id: string;
+  email: string | null;
+  role: OrgRole;
+  created_at?: string;
+}
+
+export interface OrgInvite {
+  id: string;
+  org_id: string;
+  token: string;
+  email: string | null;
+  role: OrgRole;
+  created_at?: string;
+  accepted_at: string | null;
+}
+
 export type NoticeCategory = "rent" | "bill" | "maintenance" | "info";
 
 export interface Notice {

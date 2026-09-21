@@ -4,13 +4,18 @@ import { useState } from "react";
 import Modal from "@/components/ui/Modal";
 import PropertyCard from "@/components/app/PropertyCard";
 import PropertyForm from "@/components/app/PropertyForm";
+import Link from "next/link";
 import { usePortfolio } from "@/lib/portfolio";
+import { planFor } from "@/lib/plans";
 import type { Property } from "@/lib/types";
 
 export default function PropertiesPage() {
-  const { properties, loading, error } = usePortfolio();
+  const { properties, org, loading, error } = usePortfolio();
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Property | undefined>(undefined);
+
+  const plan = planFor(org?.plan);
+  const atLimit = plan.propertyLimit != null && properties.length >= plan.propertyLimit;
 
   function openAdd() {
     setEditing(undefined);
@@ -30,11 +35,23 @@ export default function PropertiesPage() {
         </div>
         <button
           onClick={openAdd}
-          className="rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-background transition-opacity hover:opacity-80"
+          disabled={atLimit}
+          className="rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-background transition-opacity hover:opacity-80 disabled:opacity-50"
         >
           + Add property
         </button>
       </header>
+
+      {atLimit && (
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface px-4 py-3 text-sm">
+          <span>
+            You&apos;ve reached the {plan.name} plan limit of {plan.propertyLimit} properties.
+          </span>
+          <Link href="/app/billing" className="font-medium text-accent hover:underline">
+            Upgrade to Pro →
+          </Link>
+        </div>
+      )}
 
       {error && (
         <div className="mb-6 rounded-xl border border-bad/40 bg-bad-surface px-4 py-3 text-sm text-bad">

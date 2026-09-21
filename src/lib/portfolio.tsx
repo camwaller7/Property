@@ -14,6 +14,9 @@ import type {
   Inspection,
   Notice,
   OnboardingItem,
+  Organization,
+  OrgMember,
+  OrgRole,
   Payment,
   PortalResource,
   Property,
@@ -36,10 +39,17 @@ interface PortfolioContextValue {
   applications: TenantApplication[];
   notices: Notice[];
   resources: PortalResource[];
+  org: Organization | null;
+  members: OrgMember[];
+  myRole: OrgRole | null;
+  userId: string | null;
   loading: boolean;
   error: string | null;
   stats: ReturnType<typeof portfolioStats>;
   reload: () => Promise<void>;
+  updateOrgName: (name: string) => Promise<{ error?: string }>;
+  createInvite: (role: OrgRole) => Promise<{ token?: string; error?: string }>;
+  removeMember: (userId: string) => Promise<{ error?: string }>;
   saveProperty: (data: PropertyInput, id?: string) => Promise<{ error?: string }>;
   addPayment: (
     propertyId: string,
@@ -66,6 +76,9 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   const [applications, setApplications] = useState<TenantApplication[]>([]);
   const [notices, setNotices] = useState<Notice[]>([]);
   const [resources, setResources] = useState<PortalResource[]>([]);
+  const [org, setOrg] = useState<Organization | null>(null);
+  const [members, setMembers] = useState<OrgMember[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -116,6 +129,24 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       .select("*")
       .order("created_at", { ascending: false });
     setResources((rsrc as PortalResource[]) || []);
+
+    // Organization context (current user's org + team).
+    const { data: userData } = await supabase.auth.getUser();
+    const uid = userData.user?.id ?? null;
+    setUserId(uid);
+    const { data: orgs } = await supabase.from("organizations").select("*").order("created_at");
+    const currentOrg = ((orgs as Organization[]) || [])[0] ?? null;
+    setOrg(currentOrg);
+    if (currentOrg) {
+      const { data: mem } = await supabase
+        .from("org_members")
+        .select("*")
+        .eq("org_id", currentOrg.id)
+        .order("created_at");
+      setMembers((mem as OrgMember[]) || []);
+    } else {
+      setMembers([]);
+    }
 
     setLoading(false);
   }, []);
@@ -289,6 +320,49 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     [reload]
   );
 
+  const updateOrgName = useCallback(
+    async (name: string) => {
+      if (!org) return { error: "No organization." };
+      const res = await supabase.from("organizations").update({ name }).eq("id", org.id);
+      if (res.error) return { error: res.error.message };
+      await reload();
+      return {};
+    },
+    [org, reload]
+  );
+
+  const createInvite = useCallback(
+    async (role: OrgRole) => {
+      if (!org) return { error: "No organization." };
+      const token =
+        (globalThis.crypto?.randomUUID?.() ?? String(Math.random())).replace(/-/g, "") +
+        Math.random().toString(36).slice(2, 8);
+      const res = await supabase.from("org_invites").insert({ org_id: org.id, token, role });
+      if (res.error) return { error: res.error.message };
+      await reload();
+      return { token };
+    },
+    [org, reload]
+  );
+
+  const removeMember = useCallback(
+    async (memberUserId: string) => {
+      if (!org) return { error: "No organization." };
+      const res = await supabase
+        .from("org_members")
+        .delete()
+        .eq("org_id", org.id)
+        .eq("user_id", memberUserId);
+      if (res.error) return { error: res.error.message };
+      await reload();
+      return {};
+    },
+    [org, reload]
+  );
+
+  const myRole: OrgRole | null =
+    members.find((m) => m.user_id === userId)?.role ?? null;
+
   const stats = useMemo(
     () => portfolioStats(properties, paymentsByProperty),
     [properties, paymentsByProperty]
@@ -302,10 +376,17 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     applications,
     notices,
     resources,
+    org,
+    members,
+    myRole,
+    userId,
     loading,
     error,
     stats,
     reload,
+    updateOrgName,
+    createInvite,
+    removeMember,
     saveProperty,
     addPayment,
     saveTenancy,

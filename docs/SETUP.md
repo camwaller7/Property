@@ -26,6 +26,10 @@ Environment variables the app uses:
 NEXT_PUBLIC_SUPABASE_URL       = https://tioeqxdulxqiptlszldp.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY  = (the anon key — see below; it is public by design)
 ZAPIER_EMAIL_WEBHOOK_URL       = (from Task 2; enables manager email sending)
+STRIPE_SECRET_KEY              = (from Task 5; enables paid plans — server-only)
+STRIPE_PRICE_ID                = (from Task 5; the Pro recurring price)
+STRIPE_WEBHOOK_SECRET          = (from Task 5; verifies Stripe webhook calls)
+SUPABASE_SERVICE_ROLE_KEY      = (from Task 5; server-only; used ONLY by the billing webhook)
 ```
 
 The anon key (public, safe in the browser — RLS protects the data):
@@ -170,6 +174,33 @@ The anon stopgap has been replaced (see README "Security model"):
 
 Nothing else to do here. Future multi-owner scoping (`owner_id` + `auth.uid()`
 RLS) is a later code change, not a go-live step.
+
+---
+
+## Task 5 — Billing / paid plans (optional, when ready to charge)
+
+Free accounts are capped (3 properties); Pro is unlimited. Payments run through
+Stripe. The app works fully without this — the Billing page just shows "billing
+not configured" on upgrade until these are set.
+
+1. Create a **Stripe** account. In **test mode** to start.
+2. **Products → add a product** "Folio Pro" with a **recurring** price; copy the
+   **price ID** (`price_...`) → env `STRIPE_PRICE_ID`.
+3. **Developers → API keys** → copy the **secret key** (`sk_...`) → env
+   `STRIPE_SECRET_KEY`.
+4. **Developers → Webhooks → Add endpoint** → URL
+   `https://<your-domain>/api/billing/webhook`, events:
+   `checkout.session.completed`, `customer.subscription.updated`,
+   `customer.subscription.deleted`. Copy the **signing secret** (`whsec_...`) →
+   env `STRIPE_WEBHOOK_SECRET`.
+5. Supabase dashboard → **Project Settings → API → service_role key** → copy →
+   env `SUPABASE_SERVICE_ROLE_KEY`. **Server-only — never expose this; it's used
+   only by the billing webhook to update the org's plan.**
+6. Add all four env vars in Vercel and **redeploy**.
+
+**Done when:** on the Billing page, **Upgrade to Pro** opens Stripe Checkout;
+after a test payment the plan flips to Pro (via the webhook) and the property
+cap lifts.
 
 ---
 
