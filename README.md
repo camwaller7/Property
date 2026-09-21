@@ -157,15 +157,25 @@ Supabase's linter flags the three token RPCs as publicly executable — that is
 intentional (public-by-token access) and safe, as each requires a valid,
 unguessable token and returns only the matching row.
 
-**Manager account:** create it once in Supabase (Authentication → Users → Add
-user, with auto-confirm) — see `docs/SETUP.md`. Keep sign-ups **disabled** so
-only accounts you create can reach the workspace.
+### Multi-tenant (self-serve accounts)
 
-### Future hardening (multi-owner)
+Public sign-up is open: anyone can create an account from the landing page or
+`/app` and track their own portfolio. Every owned table has an `owner_id`
+(defaulting to `auth.uid()`) and RLS scoped to `owner_id = auth.uid()`, so each
+account sees and edits only its own data — verified server-side (user A's rows
+are invisible to user B). Your company's own managed portfolio is simply the
+first account you create.
 
-Currently any signed-in user is treated as the single owner. When the platform
-grows to multiple managers/agencies, add an `owner_id` column and scope RLS to
-`auth.uid()` so each account sees only its own portfolio.
+Enable sign-ups and choose email confirmation under Supabase → Authentication —
+see `docs/SETUP.md`.
+
+### Future hardening
+
+- **Teams/org accounts** — today one account = one owner. Multi-user orgs (staff
+  under one company, roles/permissions) would add an `org_id` layer above
+  `owner_id`.
+- **Per-owner storage scoping** — uploaded files are protected by unguessable
+  paths + private buckets; tightening storage RLS to the owner is a follow-up.
 
 ## Roadmap
 - **Renovations** — receipt capture, tax categorisation, cost-vs-value, accountant export.

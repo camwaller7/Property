@@ -31,7 +31,7 @@ export default function Home() {
               href="/app"
               className="rounded-full bg-foreground px-6 py-3 text-sm font-medium text-background transition-opacity hover:opacity-80"
             >
-              Open workspace
+              Start free
             </Link>
             <a
               href="#invest"
@@ -68,6 +68,37 @@ export default function Home() {
               </div>
             </Reveal>
           ))}
+        </div>
+      </section>
+
+      {/* Sign-up band — self-serve: create an account and track your own portfolio. */}
+      <section id="signup" className="scroll-mt-24 px-6 py-32">
+        <div className="mx-auto max-w-4xl rounded-3xl bg-surface px-8 py-16 text-center">
+          <Reveal>
+            <h2 className="text-4xl font-semibold tracking-tightest md:text-5xl">
+              Track your own properties, free.
+            </h2>
+            <p className="mx-auto mt-4 max-w-xl text-muted">
+              Create an account and get your whole portfolio in one place — rent, leases, gearing,
+              inspections and documents. No spreadsheets, no setup.
+            </p>
+          </Reveal>
+          <Reveal delay={0.1}>
+            <div className="mt-8 flex flex-wrap justify-center gap-4">
+              <Link
+                href="/app"
+                className="rounded-full bg-foreground px-8 py-3.5 text-sm font-medium text-background transition-opacity hover:opacity-80"
+              >
+                Create your free account
+              </Link>
+              <Link
+                href="/app"
+                className="rounded-full border border-border px-8 py-3.5 text-sm font-medium transition-colors hover:bg-background"
+              >
+                Sign in
+              </Link>
+            </div>
+          </Reveal>
         </div>
       </section>
 

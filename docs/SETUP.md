@@ -72,19 +72,30 @@ scope the automation couldn't reach.
 **Done when:** the deployment succeeds and the production URL loads the Folio
 landing page, and visiting `/app` shows the **manager sign-in** screen.
 
-### Task 1b — Create the manager login (required)
+### Task 1b — Auth settings (public sign-up)
 
-The workspace now uses real Supabase Auth (no more passcode). Create your login:
+The workspace uses real Supabase Auth, and **anyone can now create their own
+account** to track their own properties. Each account is fully isolated — RLS
+scopes every table to `owner_id = auth.uid()` (verified server-side), so users
+only ever see their own data.
 
-1. Supabase dashboard → project `tioeqxdulxqiptlszldp` → **Authentication → Users
-   → Add user**. Enter your email + a strong password and tick **Auto Confirm
-   User**. Create.
-2. **Authentication → Providers/Sign In** → make sure **Email** is enabled and,
-   importantly, turn **"Allow new users to sign up" OFF** — only users you create
-   in the dashboard should be able to reach the workspace.
+1. Supabase dashboard → project `tioeqxdulxqiptlszldp` → **Authentication →
+   Sign In / Providers** → ensure **Email** is enabled and **"Allow new users to
+   sign up" is ON**.
+2. **Email confirmation:** your choice.
+   - *On* (recommended for production) — new users must click a confirmation link
+     before signing in. The app already handles this (shows "check your email").
+     Note Supabase's built-in email is rate-limited; for volume, configure your
+     own SMTP under Authentication → Emails.
+   - *Off* (fastest for testing) — Authentication → Providers → Email → disable
+     "Confirm email"; sign-ups log in immediately.
+3. Your **own company account** is just the first account you create (via the
+   landing page "Create your free account", or Authentication → Users → Add user
+   with Auto Confirm). Your managed portfolio lives under it.
 
-**Done when:** at `/app` you can sign in with that email/password and see the
-dashboard.
+**Done when:** at `/app` (or the landing "Create your free account") you can
+register, land in the dashboard, and a second test account sees none of the
+first account's data.
 
 ---
 

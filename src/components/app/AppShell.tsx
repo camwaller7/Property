@@ -87,29 +87,50 @@ export default function AppShell({ children }: { children: ReactNode }) {
 }
 
 function LoginScreen() {
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [err, setErr] = useState("");
+  const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
 
-  async function signIn() {
+  async function submit() {
     if (!email || !password) {
       setErr("Enter your email and password.");
       return;
     }
+    if (mode === "signup" && password.length < 8) {
+      setErr("Choose a password of at least 8 characters.");
+      return;
+    }
     setBusy(true);
     setErr("");
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    setNotice("");
+
+    if (mode === "signin") {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) setErr(error.message);
+      // On success, onAuthStateChange swaps this screen for the workspace.
+    } else {
+      const { data, error } = await supabase.auth.signUp({ email, password });
+      if (error) setErr(error.message);
+      else if (!data.session) {
+        // Email confirmation is required — no session yet.
+        setNotice("Account created. Check your email to confirm, then sign in.");
+        setMode("signin");
+      }
+      // If a session came back, onAuthStateChange logs them straight in.
+    }
     setBusy(false);
-    if (error) setErr(error.message);
-    // On success, onAuthStateChange swaps this screen for the workspace.
   }
 
   return (
     <div className="flex min-h-screen items-center justify-center px-5">
       <div className="w-full max-w-sm rounded-2xl border border-border bg-surface p-8">
         <h1 className="text-center text-2xl font-semibold tracking-tight">{brand.name}</h1>
-        <p className="mt-2 text-center text-sm text-muted">Manager sign in</p>
+        <p className="mt-2 text-center text-sm text-muted">
+          {mode === "signin" ? "Sign in to your workspace" : "Create your free account"}
+        </p>
         <input
           type="email"
           autoFocus
@@ -122,18 +143,31 @@ function LoginScreen() {
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && signIn()}
-          placeholder="Password"
+          onKeyDown={(e) => e.key === "Enter" && submit()}
+          placeholder={mode === "signup" ? "Choose a password (8+ characters)" : "Password"}
           className="mt-3 w-full rounded-xl border border-border bg-background px-4 py-3 outline-none focus:border-accent"
         />
         <button
-          onClick={signIn}
+          onClick={submit}
           disabled={busy}
           className="mt-4 w-full rounded-full bg-foreground px-6 py-3 text-sm font-medium text-background transition-opacity hover:opacity-80 disabled:opacity-50"
         >
-          {busy ? "Signing in…" : "Sign in"}
+          {busy ? "Please wait…" : mode === "signin" ? "Sign in" : "Create account"}
         </button>
-        <p className="mt-3 min-h-[18px] text-center text-sm text-bad">{err}</p>
+        {notice && <p className="mt-3 text-center text-sm text-good">{notice}</p>}
+        <p className="mt-2 min-h-[18px] text-center text-sm text-bad">{err}</p>
+        <button
+          onClick={() => {
+            setMode(mode === "signin" ? "signup" : "signin");
+            setErr("");
+            setNotice("");
+          }}
+          className="mt-2 w-full text-center text-sm text-muted hover:text-foreground"
+        >
+          {mode === "signin"
+            ? "New here? Create an account"
+            : "Already have an account? Sign in"}
+        </button>
       </div>
     </div>
   );
