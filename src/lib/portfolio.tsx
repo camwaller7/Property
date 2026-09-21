@@ -12,8 +12,10 @@ import {
 import { supabase } from "./supabase";
 import type {
   Inspection,
+  Notice,
   OnboardingItem,
   Payment,
+  PortalResource,
   Property,
   PropertyInput,
   Tenancy,
@@ -23,6 +25,8 @@ import { daysUntil, portfolioStats } from "./format";
 
 export type TenancyInput = Omit<Tenancy, "id" | "created_at">;
 export type InspectionInput = Omit<Inspection, "id" | "created_at">;
+export type NoticeInput = Omit<Notice, "id" | "created_at">;
+export type ResourceInput = Omit<PortalResource, "id" | "created_at">;
 
 interface PortfolioContextValue {
   properties: Property[];
@@ -30,6 +34,8 @@ interface PortfolioContextValue {
   tenancies: Tenancy[];
   inspections: Inspection[];
   applications: TenantApplication[];
+  notices: Notice[];
+  resources: PortalResource[];
   loading: boolean;
   error: string | null;
   stats: ReturnType<typeof portfolioStats>;
@@ -43,6 +49,11 @@ interface PortfolioContextValue {
   setOnboarding: (tenancyId: string, items: OnboardingItem[]) => Promise<{ error?: string }>;
   saveInspection: (data: InspectionInput, id?: string) => Promise<{ error?: string }>;
   createApplication: (tenancyId: string) => Promise<{ token?: string; error?: string }>;
+  enablePortal: (tenancyId: string) => Promise<{ token?: string; error?: string }>;
+  addNotice: (data: NoticeInput) => Promise<{ error?: string }>;
+  deleteNotice: (id: string) => Promise<{ error?: string }>;
+  addResource: (data: ResourceInput) => Promise<{ error?: string }>;
+  deleteResource: (id: string) => Promise<{ error?: string }>;
 }
 
 const PortfolioContext = createContext<PortfolioContextValue | null>(null);
@@ -53,6 +64,8 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   const [tenancies, setTenancies] = useState<Tenancy[]>([]);
   const [inspections, setInspections] = useState<Inspection[]>([]);
   const [applications, setApplications] = useState<TenantApplication[]>([]);
+  const [notices, setNotices] = useState<Notice[]>([]);
+  const [resources, setResources] = useState<PortalResource[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -91,6 +104,18 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       .select("*")
       .order("created_at");
     setApplications((apps as TenantApplication[]) || []);
+
+    const { data: nots } = await supabase
+      .from("notices")
+      .select("*")
+      .order("created_at", { ascending: false });
+    setNotices((nots as Notice[]) || []);
+
+    const { data: rsrc } = await supabase
+      .from("portal_resources")
+      .select("*")
+      .order("created_at", { ascending: false });
+    setResources((rsrc as PortalResource[]) || []);
 
     setLoading(false);
   }, []);
@@ -209,6 +234,61 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     [applications, reload]
   );
 
+  const enablePortal = useCallback(
+    async (tenancyId: string) => {
+      const existing = tenancies.find((t) => t.id === tenancyId);
+      if (existing?.portal_token) return { token: existing.portal_token };
+      const token =
+        (globalThis.crypto?.randomUUID?.() ?? String(Math.random())).replace(/-/g, "") +
+        Math.random().toString(36).slice(2, 8);
+      const res = await supabase.from("tenancies").update({ portal_token: token }).eq("id", tenancyId);
+      if (res.error) return { error: res.error.message };
+      await reload();
+      return { token };
+    },
+    [tenancies, reload]
+  );
+
+  const addNotice = useCallback(
+    async (data: NoticeInput) => {
+      const res = await supabase.from("notices").insert(data);
+      if (res.error) return { error: res.error.message };
+      await reload();
+      return {};
+    },
+    [reload]
+  );
+
+  const deleteNotice = useCallback(
+    async (id: string) => {
+      const res = await supabase.from("notices").delete().eq("id", id);
+      if (res.error) return { error: res.error.message };
+      await reload();
+      return {};
+    },
+    [reload]
+  );
+
+  const addResource = useCallback(
+    async (data: ResourceInput) => {
+      const res = await supabase.from("portal_resources").insert(data);
+      if (res.error) return { error: res.error.message };
+      await reload();
+      return {};
+    },
+    [reload]
+  );
+
+  const deleteResource = useCallback(
+    async (id: string) => {
+      const res = await supabase.from("portal_resources").delete().eq("id", id);
+      if (res.error) return { error: res.error.message };
+      await reload();
+      return {};
+    },
+    [reload]
+  );
+
   const stats = useMemo(
     () => portfolioStats(properties, paymentsByProperty),
     [properties, paymentsByProperty]
@@ -220,6 +300,8 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     tenancies,
     inspections,
     applications,
+    notices,
+    resources,
     loading,
     error,
     stats,
@@ -230,6 +312,11 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     setOnboarding,
     saveInspection,
     createApplication,
+    enablePortal,
+    addNotice,
+    deleteNotice,
+    addResource,
+    deleteResource,
   };
 
   return <PortfolioContext.Provider value={value}>{children}</PortfolioContext.Provider>;

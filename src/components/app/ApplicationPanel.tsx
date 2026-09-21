@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Badge from "@/components/ui/Badge";
+import EmailComposer from "./EmailComposer";
 import { supabase } from "@/lib/supabase";
 import { usePortfolio } from "@/lib/portfolio";
 import { fmtDate } from "@/lib/format";
@@ -16,6 +17,7 @@ export default function ApplicationPanel({ tenancy }: { tenancy: Tenancy }) {
   const [creating, setCreating] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
+  const [emailOpen, setEmailOpen] = useState(false);
 
   const app = applications.find((a) => a.tenancy_id === tenancy.id);
   const origin = typeof window !== "undefined" ? window.location.origin : "";
@@ -100,6 +102,11 @@ Kind regards`;
               <a href={link} target="_blank" rel="noopener noreferrer" className="rounded-full border border-border px-4 py-1.5 text-xs font-medium hover:bg-background">
                 Preview form
               </a>
+              {tenancy.tenant_email && (
+                <button onClick={() => setEmailOpen(true)} className="rounded-full border border-border px-4 py-1.5 text-xs font-medium hover:bg-background">
+                  Email link
+                </button>
+              )}
               {copied && <span className="self-center text-xs text-good">Copied ✓</span>}
             </div>
           </div>
@@ -115,6 +122,15 @@ Kind regards`;
       )}
 
       {error && <p className="mt-2 text-sm text-bad">{error}</p>}
+
+      <EmailComposer
+        open={emailOpen}
+        onClose={() => setEmailOpen(false)}
+        defaultTo={tenancy.tenant_email || ""}
+        defaultSubject="Your tenant application"
+        defaultBody={emailBody}
+        tenancyId={tenancy.id}
+      />
     </div>
   );
 }

@@ -28,6 +28,21 @@ export function fmtDate(dateStr: string | null | undefined): string {
   return d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
 }
 
+const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+
+// Next occurrence (today or later) of a named weekday, e.g. "Friday". Returns a
+// YYYY-MM-DD string, or null if the day name isn't recognised.
+export function nextWeekdayDate(dayName: string | null | undefined): string | null {
+  if (!dayName) return null;
+  const target = WEEKDAYS.indexOf(dayName.trim().toLowerCase());
+  if (target < 0) return null;
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const diff = (target - now.getDay() + 7) % 7;
+  now.setDate(now.getDate() + diff);
+  return now.toISOString().slice(0, 10);
+}
+
 // ---- Per-property finance ------------------------------------------------
 
 export function equity(p: Property): number | null {

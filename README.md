@@ -61,10 +61,26 @@ it runs with zero config. See `.env.example`.
 ```
 NEXT_PUBLIC_SUPABASE_URL
 NEXT_PUBLIC_SUPABASE_ANON_KEY
+ZAPIER_EMAIL_WEBHOOK_URL   # server-only; enables manager email sending (see below)
 ```
 
 The anon/publishable key is designed to be exposed in the browser; row-level
 security (not key secrecy) is what protects the data.
+
+### Email sending (via Zapier)
+
+Managers send emails from the app through a Zapier webhook, so no email domain
+setup is needed — you use whatever you connect in Zapier (Gmail, Outlook, SMS…).
+
+1. In Zapier, create a Zap: **Trigger = Webhooks by Zapier → Catch Hook**.
+2. **Action = your email app** (e.g. Gmail → Send Email). Map the incoming
+   fields: `to`, `subject`, `body`, `from_name`.
+3. Copy the Catch Hook URL and set it as **`ZAPIER_EMAIL_WEBHOOK_URL`** in Vercel
+   (Project → Settings → Environment Variables). Turn the Zap on.
+
+Until that var is set, the app's send endpoint (`POST /api/email`) returns a
+clear "email isn't configured yet" message instead of failing silently. Every
+send is recorded in the `email_log` table.
 
 ## Backend (Supabase)
 

@@ -31,6 +31,7 @@ function blank(propertyId: string): TenancyInput {
     status: "upcoming",
     onboarding: defaultOnboarding(),
     notes: "",
+    portal_token: null,
   };
 }
 

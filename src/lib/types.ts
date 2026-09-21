@@ -54,6 +54,41 @@ export interface Tenancy {
   status: TenancyStatus;
   onboarding: OnboardingItem[];
   notes: string | null;
+  portal_token: string | null;
+  created_at?: string;
+}
+
+export type NoticeCategory = "rent" | "bill" | "maintenance" | "info";
+
+export interface Notice {
+  id: string;
+  property_id: string | null;
+  tenancy_id: string | null;
+  category: NoticeCategory;
+  title: string;
+  body: string | null;
+  due_date: string | null;
+  created_at?: string;
+}
+
+export interface PortalResource {
+  id: string;
+  property_id: string | null;
+  title: string;
+  description: string | null;
+  path: string | null;
+  url: string | null;
+  created_at?: string;
+}
+
+export interface EmailLogEntry {
+  id: string;
+  tenancy_id: string | null;
+  to_email: string;
+  subject: string | null;
+  body: string | null;
+  status: "sent" | "failed";
+  error: string | null;
   created_at?: string;
 }
 
