@@ -145,6 +145,18 @@ Backed by additive tables (`tenancies`, `inspections`, `tenant_applications`,
 buckets; see `supabase/migrations/`. SA rules live in `src/lib/sa-rules.ts`; the
 application schema in `src/lib/application-schema.ts`.
 
+### Notifications
+
+- A **notification bell** in the workspace shows an unread count and a feed
+  (`notifications` table, org-scoped). Opening it marks items read.
+- **Events** create feed entries automatically: a tenant submitting a
+  maintenance request or completing an onboarding application (written inside the
+  token RPCs). Maintenance submissions also fire a **best-effort manager email**
+  through the existing Zapier hook — no extra setup beyond `ZAPIER_EMAIL_WEBHOOK_URL`.
+- **Scheduled reminders**: a daily `pg_cron` job (`daily-reminders`, 22:00 UTC)
+  runs `generate_reminders()`, adding feed entries for rent due/overdue, lease
+  expiries (≤30 days) and upcoming inspections (≤7 days), deduped.
+
 ## Security model (locked down)
 
 The anon stopgap has been replaced:

@@ -11,6 +11,7 @@ import {
 } from "react";
 import { supabase } from "./supabase";
 import type {
+  AppNotification,
   Inspection,
   MaintenanceRequest,
   MaintenanceStatus,
@@ -42,6 +43,8 @@ interface PortfolioContextValue {
   notices: Notice[];
   resources: PortalResource[];
   maintenance: MaintenanceRequest[];
+  notifications: AppNotification[];
+  unreadCount: number;
   org: Organization | null;
   members: OrgMember[];
   myRole: OrgRole | null;
@@ -54,6 +57,7 @@ interface PortfolioContextValue {
   createInvite: (role: OrgRole) => Promise<{ token?: string; error?: string }>;
   removeMember: (userId: string) => Promise<{ error?: string }>;
   updateRequestStatus: (id: string, status: MaintenanceStatus) => Promise<{ error?: string }>;
+  markNotificationsRead: () => Promise<void>;
   saveProperty: (data: PropertyInput, id?: string) => Promise<{ error?: string }>;
   addPayment: (
     propertyId: string,
@@ -81,6 +85,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   const [notices, setNotices] = useState<Notice[]>([]);
   const [resources, setResources] = useState<PortalResource[]>([]);
   const [maintenance, setMaintenance] = useState<MaintenanceRequest[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [org, setOrg] = useState<Organization | null>(null);
   const [members, setMembers] = useState<OrgMember[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
@@ -140,6 +145,13 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       .select("*")
       .order("created_at", { ascending: false });
     setMaintenance((maint as MaintenanceRequest[]) || []);
+
+    const { data: notifs } = await supabase
+      .from("notifications")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(50);
+    setNotifications((notifs as AppNotification[]) || []);
 
     // Organization context (current user's org + team).
     const { data: userData } = await supabase.auth.getUser();
@@ -384,6 +396,16 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     [reload]
   );
 
+  const markNotificationsRead = useCallback(async () => {
+    const unreadIds = notifications.filter((n) => !n.read).map((n) => n.id);
+    if (unreadIds.length === 0) return;
+    // Optimistic.
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    await supabase.from("notifications").update({ read: true }).in("id", unreadIds);
+  }, [notifications]);
+
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
   const myRole: OrgRole | null =
     members.find((m) => m.user_id === userId)?.role ?? null;
 
@@ -401,6 +423,8 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     notices,
     resources,
     maintenance,
+    notifications,
+    unreadCount,
     org,
     members,
     myRole,
@@ -413,6 +437,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     createInvite,
     removeMember,
     updateRequestStatus,
+    markNotificationsRead,
     saveProperty,
     addPayment,
     saveTenancy,

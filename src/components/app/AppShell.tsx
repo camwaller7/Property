@@ -7,6 +7,7 @@ import type { Session } from "@supabase/supabase-js";
 import { brand } from "@/lib/brand";
 import { supabase } from "@/lib/supabase";
 import { PortfolioProvider } from "@/lib/portfolio";
+import NotificationBell from "./NotificationBell";
 
 const nav = [
   { href: "/app", label: "Dashboard", exact: true },
@@ -50,9 +51,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
             <Link href="/" className="text-lg font-semibold tracking-tight">
               {brand.name}
             </Link>
-            <Link href="/" className="text-xs text-muted hover:text-foreground md:hidden">
-              Home
-            </Link>
+            <NotificationBell />
           </div>
           <nav className="flex gap-1 overflow-x-auto px-4 pb-3 md:flex-col md:pb-0">
             {nav.map((item) => {

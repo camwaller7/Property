@@ -161,7 +161,14 @@ export default function PortalPage() {
       </Card>
 
       {/* Maintenance */}
-      <MaintenanceCard token={token} requests={requests} onSubmitted={load} />
+      <MaintenanceCard
+        token={token}
+        requests={requests}
+        onSubmitted={load}
+        managerEmail={contact?.email ?? null}
+        propertyLabel={property?.address ?? null}
+        tenantName={tenancy.tenant_name ?? null}
+      />
 
       {/* Notices */}
       <Card title="Notices & reminders">
@@ -237,10 +244,16 @@ function MaintenanceCard({
   token,
   requests,
   onSubmitted,
+  managerEmail,
+  propertyLabel,
+  tenantName,
 }: {
   token: string;
   requests: MaintenanceRequest[];
   onSubmitted: () => Promise<void>;
+  managerEmail: string | null;
+  propertyLabel: string | null;
+  tenantName: string | null;
 }) {
   const [open, setOpen] = useState(false);
   const [category, setCategory] = useState("General");
@@ -276,6 +289,20 @@ function MaintenanceCard({
       });
       if (error) throw new Error(error.message);
       if (res?.error) throw new Error("Couldn't submit — please contact your manager.");
+
+      // Best-effort email alert to the manager (won't block the submission).
+      if (managerEmail) {
+        fetch("/api/email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            to: managerEmail,
+            subject: `New maintenance request${propertyLabel ? ` — ${propertyLabel}` : ""}`,
+            body: `${tenantName || "A tenant"} submitted a ${urgency} ${category} request:\n\n${title}\n${description}\n\nOpen the workspace to action it.`,
+          }),
+        }).catch(() => {});
+      }
+
       setTitle("");
       setDescription("");
       setFile(undefined);

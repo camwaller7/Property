@@ -87,6 +87,18 @@ export interface OrgInvite {
   accepted_at: string | null;
 }
 
+export interface AppNotification {
+  id: string;
+  org_id: string | null;
+  type: string;
+  title: string;
+  body: string | null;
+  link: string | null;
+  entity_id: string | null;
+  read: boolean;
+  created_at?: string;
+}
+
 export type MaintenanceStatus = "open" | "in_progress" | "resolved" | "cancelled";
 export type MaintenanceUrgency = "low" | "normal" | "urgent";
 
