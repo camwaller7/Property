@@ -55,6 +55,7 @@ interface PortfolioContextValue {
   reload: () => Promise<void>;
   updateOrgName: (name: string) => Promise<{ error?: string }>;
   setRentOnlineEnabled: (enabled: boolean) => Promise<{ error?: string }>;
+  setDefaultState: (state: string) => Promise<{ error?: string }>;
   createInvite: (role: OrgRole) => Promise<{ token?: string; error?: string }>;
   removeMember: (userId: string) => Promise<{ error?: string }>;
   updateRequestStatus: (id: string, status: MaintenanceStatus) => Promise<{ error?: string }>;
@@ -397,6 +398,17 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     [org, reload]
   );
 
+  const setDefaultState = useCallback(
+    async (state: string) => {
+      if (!org) return { error: "No organization." };
+      const res = await supabase.from("organizations").update({ default_state: state }).eq("id", org.id);
+      if (res.error) return { error: res.error.message };
+      await reload();
+      return {};
+    },
+    [org, reload]
+  );
+
   const createInvite = useCallback(
     async (role: OrgRole) => {
       if (!org) return { error: "No organization." };
@@ -520,6 +532,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     reload,
     updateOrgName,
     setRentOnlineEnabled,
+    setDefaultState,
     createInvite,
     removeMember,
     updateRequestStatus,

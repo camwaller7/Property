@@ -5,10 +5,13 @@ import Badge from "@/components/ui/Badge";
 import ApplicationPanel from "./ApplicationPanel";
 import PortalPanel from "./PortalPanel";
 import InspectionScheduler from "./InspectionScheduler";
+import Link from "next/link";
 import { usePortfolio } from "@/lib/portfolio";
 import type { Inspection, Tenancy } from "@/lib/types";
 import { fmtDate, fmtMoney } from "@/lib/format";
-import { maxBond } from "@/lib/sa-rules";
+import { maxBond, jurisdiction } from "@/lib/jurisdictions";
+import { isPro } from "@/lib/plans";
+import { docForOnboardingKey } from "@/lib/documents";
 
 const statusTone = { upcoming: "warn", active: "good", ended: "neutral" } as const;
 
@@ -32,7 +35,7 @@ export default function TenancyCard({
   tenancy: Tenancy;
   onEdit: (t: Tenancy) => void;
 }) {
-  const { properties, inspections, setOnboarding, saveInspection } = usePortfolio();
+  const { properties, inspections, setOnboarding, saveInspection, org } = usePortfolio();
   const [open, setOpen] = useState(true);
 
   const t = tenancy;
@@ -44,7 +47,23 @@ export default function TenancyCard({
     .filter((i) => i.tenancy_id === t.id)
     .sort((a, b) => (a.scheduled_date || "").localeCompare(b.scheduled_date || ""));
 
-  const cap = maxBond(t.weekly_rent);
+  const cap = maxBond(t.weekly_rent, property?.state);
+  const pro = isPro(org?.plan, org?.subscription_status);
+  const juris = jurisdiction(property?.state);
+
+  // The contextual document/link for an onboarding step (Pro only).
+  function docActionFor(key: string): { label: string; href: string; external?: boolean } | null {
+    if (!pro) return null;
+    const doc = docForOnboardingKey(key);
+    if (!doc) return null;
+    if (doc.type === "template") return { label: "Open template", href: `/app/documents/template/${doc.key}` };
+    if (doc.type === "generate") return { label: "Generate", href: `/app/management/documents/${t.id}` };
+    if (doc.type === "link" && doc.linkKey && juris) {
+      const l = (juris as unknown as Record<string, { url: string }>)[doc.linkKey];
+      if (l) return { label: "Open", href: l.url, external: true };
+    }
+    return null;
+  }
 
   function toggleItem(key: string) {
     const next = items.map((i) =>
@@ -123,20 +142,39 @@ export default function TenancyCard({
               <div className="h-full rounded-full bg-good transition-all" style={{ width: `${pct}%` }} />
             </div>
             <ul className="space-y-1">
-              {items.map((i) => (
-                <li key={i.key}>
-                  <label className="flex cursor-pointer items-start gap-3 rounded-lg px-2 py-1.5 hover:bg-surface">
-                    <input type="checkbox" checked={i.done} onChange={() => toggleItem(i.key)} className="mt-1" />
-                    <span className={`text-sm ${i.done ? "text-muted line-through" : ""}`}>
-                      {i.label}
-                      {i.done && i.done_date ? (
-                        <span className="ml-2 text-xs text-muted">· {fmtDate(i.done_date)}</span>
-                      ) : null}
-                    </span>
-                  </label>
-                </li>
-              ))}
+              {items.map((i) => {
+                const action = docActionFor(i.key);
+                return (
+                  <li key={i.key} className="flex items-start justify-between gap-3 rounded-lg px-2 py-1.5 hover:bg-surface">
+                    <label className="flex flex-1 cursor-pointer items-start gap-3">
+                      <input type="checkbox" checked={i.done} onChange={() => toggleItem(i.key)} className="mt-1" />
+                      <span className={`text-sm ${i.done ? "text-muted line-through" : ""}`}>
+                        {i.label}
+                        {i.done && i.done_date ? (
+                          <span className="ml-2 text-xs text-muted">· {fmtDate(i.done_date)}</span>
+                        ) : null}
+                      </span>
+                    </label>
+                    {action &&
+                      (action.external ? (
+                        <a href={action.href} target="_blank" rel="noopener noreferrer" className="mt-0.5 shrink-0 text-xs font-medium text-accent hover:underline">
+                          {action.label} ↗
+                        </a>
+                      ) : (
+                        <Link href={action.href} className="mt-0.5 shrink-0 text-xs font-medium text-accent hover:underline">
+                          {action.label} →
+                        </Link>
+                      ))}
+                  </li>
+                );
+              })}
             </ul>
+            {!pro && (
+              <p className="mt-2 text-xs text-muted">
+                <Link href="/app/billing" className="text-accent hover:underline">Upgrade to Pro</Link> to get the
+                right form/link beside each step.
+              </p>
+            )}
           </div>
 
           {/* Tenant application / onboarding link */}

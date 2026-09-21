@@ -2,14 +2,9 @@
 // self-management. Sources: SA Residential Tenancies Act / Consumer & Business
 // Services guidance. These are helpers, not legal advice.
 
-// Bond: capped at 4 weeks' rent when weekly rent is $800 or less; 6 weeks above.
-export const BOND_HIGH_RENT_THRESHOLD = 800;
-
-export function maxBond(weeklyRent: number | null | undefined): number | null {
-  if (weeklyRent == null || Number.isNaN(Number(weeklyRent))) return null;
-  const weeks = Number(weeklyRent) <= BOND_HIGH_RENT_THRESHOLD ? 4 : 6;
-  return Number(weeklyRent) * weeks;
-}
+// NOTE: bond caps are jurisdiction-specific — see maxBond() in
+// ./jurisdictions. The inspection helpers below are SA-based; other states use
+// their own notice windows (see JURISDICTIONS[state].inspection).
 
 // Routine inspections: written notice 7–28 days before entry, max 4 per year,
 // between 8am–8pm, not on a Sunday or public holiday, max 2 hours.
@@ -73,9 +68,10 @@ export interface OnboardingItem {
 export function defaultOnboarding(): OnboardingItem[] {
   return [
     { key: "agreement", label: "Residential tenancy agreement signed", done: false },
-    { key: "condition_report", label: "Ingoing condition report completed & shared (within 2 business days)", done: false },
+    { key: "info_statement", label: "Tenant information statement provided", done: false },
+    { key: "condition_report", label: "Ingoing condition report completed & shared", done: false },
     { key: "bond_collected", label: "Bond collected from tenant", done: false },
-    { key: "bond_lodged", label: "Bond lodged with Consumer & Business Services (CBS)", done: false },
+    { key: "bond_lodged", label: "Bond lodged with the state bond authority", done: false },
     { key: "first_rent", label: "First rent payment received", done: false },
     { key: "smoke_alarms", label: "Smoke alarms tested & compliant", done: false },
     { key: "keys", label: "Keys / remotes handed over", done: false },

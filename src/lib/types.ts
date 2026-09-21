@@ -15,6 +15,7 @@ export interface Property {
   current_value: number | null;
   loan_balance: number | null;
   lender: string | null;
+  state: string | null; // NSW VIC QLD SA WA TAS ACT NT
   created_at?: string;
 }
 
@@ -69,6 +70,7 @@ export interface Organization {
   subscription_status: string | null;
   current_period_end: string | null;
   rent_online_enabled?: boolean;
+  default_state?: string | null;
   created_at?: string;
 }
 
@@ -215,4 +217,5 @@ export const emptyProperty: PropertyInput = {
   current_value: null,
   loan_balance: null,
   lender: "",
+  state: null,
 };

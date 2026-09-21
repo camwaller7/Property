@@ -4,7 +4,8 @@ import { useState } from "react";
 import { Field, Select, Textarea } from "./Field";
 import { usePortfolio, type TenancyInput } from "@/lib/portfolio";
 import type { Tenancy } from "@/lib/types";
-import { defaultOnboarding, maxBond } from "@/lib/sa-rules";
+import { defaultOnboarding } from "@/lib/sa-rules";
+import { maxBond } from "@/lib/jurisdictions";
 import { fmtMoney } from "@/lib/format";
 
 function toInput(t: Tenancy): TenancyInput {
@@ -68,7 +69,8 @@ export default function TenancyForm({
     }));
   }
 
-  const cap = maxBond(form.weekly_rent);
+  const selectedState = properties.find((p) => p.id === form.property_id)?.state ?? null;
+  const cap = maxBond(form.weekly_rent, selectedState);
 
   async function submit() {
     if (!form.property_id) {

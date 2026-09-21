@@ -186,6 +186,27 @@ How the system knows rent is paid, and keeps status current:
   Basiq → reconcile) as an alternative to collecting through the app; org-guarded
   for signed-in callers, open to the service role for automated feeds.
 
+## Documents & jurisdiction (Australia-wide)
+
+Tenancy law is state-based, so each **property carries a state** (NSW/VIC/QLD/SA/
+WA/TAS/ACT/NT; orgs get a `default_state` to prefill). `src/lib/jurisdictions.ts`
+holds each state's authority, bond body, tribunal, tenant-info link, bond cap and
+inspection-notice window — and `maxBond(rent, state)` computes the state-correct
+bond cap shown across the app.
+
+A **Documents & forms library** (`/app/documents`, **Pro**) lists essential
+templates and official links, filtered by state:
+- **Generate** — prefilled per tenancy (agreement, handbook — jurisdiction-aware).
+- **Template** — generic printable blanks (condition reports, notices, rent/direct-
+  debit authority, emergency contacts, smoke-alarm record) via
+  `/app/documents/template/[key]`.
+- **Official links** — resolved from the property's state (bond lodgement, tenant
+  info statement, authority, tribunal).
+
+The catalog lives in `src/lib/documents.ts` and also drives **contextual prompts**:
+during a tenancy's move-in checklist, the right form/link appears beside each step
+(Pro), so nothing is missed. All templates are drafts to review, not legal advice.
+
 ## Security model (locked down)
 
 The anon stopgap has been replaced:

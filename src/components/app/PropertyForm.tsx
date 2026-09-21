@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Field } from "./Field";
+import { Field, Select } from "./Field";
 import { usePortfolio } from "@/lib/portfolio";
 import type { Property, PropertyInput } from "@/lib/types";
 import { emptyProperty } from "@/lib/types";
+import { STATE_CODES, JURISDICTIONS } from "@/lib/jurisdictions";
 
 function toInput(p: Property): PropertyInput {
   const { id: _id, created_at: _c, ...rest } = p;
@@ -20,8 +21,10 @@ export default function PropertyForm({
   existing?: Property;
   onDone: () => void;
 }) {
-  const { saveProperty } = usePortfolio();
-  const [form, setForm] = useState<PropertyInput>(existing ? toInput(existing) : { ...emptyProperty });
+  const { saveProperty, org } = usePortfolio();
+  const [form, setForm] = useState<PropertyInput>(
+    existing ? toInput(existing) : { ...emptyProperty, state: org?.default_state ?? null }
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -56,8 +59,20 @@ export default function PropertyForm({
           className="sm:col-span-2"
           value={form.address ?? ""}
           onChange={(e) => setText("address", e.target.value)}
-          placeholder="12 Example St, Suburb SA"
+          placeholder="12 Example St, Suburb"
         />
+        <Select
+          label="State / territory"
+          value={form.state ?? ""}
+          onChange={(e) => setText("state", e.target.value)}
+        >
+          <option value="">Select…</option>
+          {STATE_CODES.map((s) => (
+            <option key={s} value={s}>
+              {s} — {JURISDICTIONS[s].name}
+            </option>
+          ))}
+        </Select>
         <Field
           label="Weekly rent ($)"
           type="number"
