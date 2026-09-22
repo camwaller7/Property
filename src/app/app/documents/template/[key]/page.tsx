@@ -3,7 +3,7 @@
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { usePortfolio } from "@/lib/portfolio";
-import { isPro } from "@/lib/plans";
+import { hasDocuments, DOCUMENTS_PLAN } from "@/lib/plans";
 import { docByKey } from "@/lib/documents";
 import { brand } from "@/lib/brand";
 
@@ -14,11 +14,11 @@ export default function TemplatePage() {
   const doc = docByKey(params.key);
 
   if (loading) return <p className="text-muted">Loading…</p>;
-  if (!isPro(org?.plan, org?.subscription_status)) {
+  if (!hasDocuments(org?.plan, org?.subscription_status)) {
     return (
       <div>
-        <p className="text-muted">Document templates are a Pro feature.</p>
-        <Link href="/app/billing" className="text-accent hover:underline">Upgrade to Pro</Link>
+        <p className="text-muted">Document templates are included from the {DOCUMENTS_PLAN.name} plan.</p>
+        <Link href="/app/billing" className="text-accent hover:underline">Upgrade to {DOCUMENTS_PLAN.name}</Link>
       </div>
     );
   }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { brand } from "@/lib/brand";
 
 // Sends manager emails by POSTing to a Zapier "Catch Hook" webhook, which fires
 // a Zap connected to Gmail / Outlook / SMS / etc. Set ZAPIER_EMAIL_WEBHOOK_URL
@@ -41,7 +42,7 @@ export async function POST(req: Request) {
         to,
         subject,
         body: body ?? "",
-        from_name: fromName ?? "Folio Property Group",
+        from_name: fromName ?? brand.full,
       }),
     });
     if (!res.ok) {

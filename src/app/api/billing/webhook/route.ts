@@ -60,11 +60,12 @@ export async function POST(req: Request) {
           break;
         }
 
-        // Otherwise: subscription upgrade.
+        // Otherwise: subscription upgrade. The tier (plus|pro) rides in metadata.
         const orgId = s.client_reference_id || s.metadata?.org_id;
+        const tier = s.metadata?.tier === "plus" ? "plus" : "pro";
         if (orgId) {
           await setPlan(orgId, {
-            plan: "pro",
+            plan: tier,
             subscription_status: "active",
             stripe_customer_id: typeof s.customer === "string" ? s.customer : null,
             stripe_subscription_id: typeof s.subscription === "string" ? s.subscription : null,
@@ -86,11 +87,12 @@ export async function POST(req: Request) {
       case "customer.subscription.deleted": {
         const sub = event.data.object as Stripe.Subscription;
         const orgId = sub.metadata?.org_id;
+        const tier = sub.metadata?.tier === "plus" ? "plus" : "pro";
         const active = sub.status === "active" || sub.status === "trialing";
         // Prefer org_id from metadata; otherwise match by customer id.
         const periodEnd = (sub as unknown as { current_period_end?: number }).current_period_end;
         const fields = {
-          plan: active ? "pro" : "free",
+          plan: active ? tier : "free",
           subscription_status: sub.status,
           current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
         };

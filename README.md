@@ -1,6 +1,6 @@
-# Folio — Property Portfolio Operating System
+# Corvelle Property — Property Portfolio Operating System
 
-Folio is the operating system for a modern property portfolio: investments,
+Corvelle Property is the operating system for a modern property portfolio: investments,
 rentals, renovations and management, tracked and run from one place. It pairs a
 polished, Apple-style brand site with a working portfolio workspace backed by
 Supabase — built to scale from a single rental to a real-estate business.

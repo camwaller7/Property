@@ -6,7 +6,7 @@ import PropertyCard from "@/components/app/PropertyCard";
 import PropertyForm from "@/components/app/PropertyForm";
 import Link from "next/link";
 import { usePortfolio } from "@/lib/portfolio";
-import { planFor } from "@/lib/plans";
+import { activePlan } from "@/lib/plans";
 import type { Property } from "@/lib/types";
 
 export default function PropertiesPage() {
@@ -14,8 +14,9 @@ export default function PropertiesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Property | undefined>(undefined);
 
-  const plan = planFor(org?.plan);
+  const plan = activePlan(org?.plan, org?.subscription_status);
   const atLimit = plan.propertyLimit != null && properties.length >= plan.propertyLimit;
+  const nextPlanName = plan.key === "free" ? "Plus" : "Pro";
 
   function openAdd() {
     setEditing(undefined);
@@ -48,7 +49,7 @@ export default function PropertiesPage() {
             You&apos;ve reached the {plan.name} plan limit of {plan.propertyLimit} properties.
           </span>
           <Link href="/app/billing" className="font-medium text-accent hover:underline">
-            Upgrade to Pro →
+            Upgrade to {nextPlanName} →
           </Link>
         </div>
       )}

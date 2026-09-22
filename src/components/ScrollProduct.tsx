@@ -2,6 +2,7 @@
 
 import { motion, useScroll, useTransform } from "framer-motion";
 import { useRef } from "react";
+import { brand } from "@/lib/brand";
 
 /**
  * The "pin the section and scale/fade a hero visual as you scroll through it"
@@ -46,7 +47,7 @@ export default function ScrollProduct() {
             <div className="h-2.5 w-2.5 rounded-full bg-white/20" />
             <div className="h-2.5 w-2.5 rounded-full bg-white/20" />
             <div className="h-2.5 w-2.5 rounded-full bg-white/20" />
-            <span className="ml-2 text-xs text-white/40">Folio — Portfolio</span>
+            <span className="ml-2 text-xs text-white/40">{brand.name} — Portfolio</span>
           </div>
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
             {tiles.map((t) => (

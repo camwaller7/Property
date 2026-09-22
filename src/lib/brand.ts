@@ -1,13 +1,16 @@
 // Central brand config so the whole product can be rethemed/renamed from one
 // place as it grows from a personal tracker into a real-estate company.
 export const brand = {
-  name: "Folio",
-  full: "Folio Property Group",
+  name: "Corvelle Property",
+  full: "Corvelle Property",
+  domain: "corvelleproperty.com",
+  url: "https://corvelleproperty.com",
+  email: "admin@corvelleproperty.com",
   // The four pillars the platform is organised around — the shape of the
   // business, not just the app's nav.
   tagline: "Your whole property world, in one place.",
   description:
-    "Folio is the operating system for a modern property portfolio — investments, rentals, renovations and management, tracked and run from a single place.",
+    "Corvelle Property is the operating system for a modern property portfolio — investments, rentals, renovations and management, tracked and run from a single place.",
   pillars: [
     {
       key: "invest",

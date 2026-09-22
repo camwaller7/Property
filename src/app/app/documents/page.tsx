@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import Badge from "@/components/ui/Badge";
 import { usePortfolio } from "@/lib/portfolio";
-import { isPro, planFor } from "@/lib/plans";
+import { hasDocuments, DOCUMENTS_PLAN } from "@/lib/plans";
 import { DOCUMENTS, type DocCategory } from "@/lib/documents";
 import { JURISDICTIONS, STATE_CODES, jurisdiction, type StateCode } from "@/lib/jurisdictions";
 
@@ -23,21 +23,21 @@ export default function DocumentsPage() {
 
   if (loading) return <p className="text-muted">Loading…</p>;
 
-  const pro = isPro(org?.plan, org?.subscription_status);
-  if (!pro) {
+  const unlocked = hasDocuments(org?.plan, org?.subscription_status);
+  if (!unlocked) {
     return (
       <div>
         <Header />
         <div className="rounded-2xl border border-dashed border-border p-8 text-center">
           <p className="text-muted">
-            The document &amp; forms library is a {planFor("pro").name} feature — essential SA/AU
-            tenancy templates and official links, in one place.
+            The document &amp; forms library is included from the {DOCUMENTS_PLAN.name} plan — essential
+            state-aware AU tenancy templates and official links, in one place.
           </p>
           <Link
             href="/app/billing"
             className="mt-4 inline-block rounded-full bg-foreground px-6 py-3 text-sm font-medium text-background hover:opacity-80"
           >
-            Upgrade to Pro
+            Upgrade to {DOCUMENTS_PLAN.name}
           </Link>
         </div>
       </div>

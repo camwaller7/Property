@@ -1,4 +1,4 @@
-# Folio — Go-Live Setup Runbook
+# Corvelle Property — Go-Live Setup Runbook
 
 Everything that must be done in a **browser** to get the app deployed and fully
 working. The code, database tables, storage buckets and security policies are
@@ -188,13 +188,20 @@ RLS) is a later code change, not a go-live step.
 
 ## Task 5 — Billing / paid plans (optional, when ready to charge)
 
-Free accounts are capped (3 properties); Pro is unlimited. Payments run through
+Three tiers: **Free** (1 property, no document library), **Plus** ($20/mo or
+$200/yr — up to 3 properties + document library + online rent + team) and
+**Pro** ($45/mo or $450/yr — unlimited + AI assistant). Payments run through
 Stripe. The app works fully without this — the Billing page just shows "billing
 not configured" on upgrade until these are set.
 
 1. Create a **Stripe** account. In **test mode** to start.
-2. **Products → add a product** "Folio Pro" with a **recurring** price; copy the
-   **price ID** (`price_...`) → env `STRIPE_PRICE_ID`.
+2. **Products → add products** with **recurring** prices and copy each **price
+   ID** (`price_...`) into the matching env var:
+   - "Corvelle Property — Plus" → **monthly** price → `STRIPE_PRICE_PLUS_MONTHLY`; **yearly** price → `STRIPE_PRICE_PLUS_ANNUAL`
+   - "Corvelle Property — Pro" → **monthly** price → `STRIPE_PRICE_PRO_MONTHLY`; **yearly** price → `STRIPE_PRICE_PRO_ANNUAL`
+
+   (You can start with just the monthly prices; the Annual toggle only works for
+   the cycles you've configured.)
 3. **Developers → API keys** → copy the **secret key** (`sk_...`) → env
    `STRIPE_SECRET_KEY`.
 4. **Developers → Webhooks → Add endpoint** → URL
@@ -205,11 +212,12 @@ not configured" on upgrade until these are set.
 5. Supabase dashboard → **Project Settings → API → service_role key** → copy →
    env `SUPABASE_SERVICE_ROLE_KEY`. **Server-only — never expose this; it's used
    only by the billing webhook to update the org's plan.**
-6. Add all four env vars in Vercel and **redeploy**.
+6. Add the env vars in Vercel and **redeploy**.
 
-**Done when:** on the Billing page, **Upgrade to Pro** opens Stripe Checkout;
-after a test payment the plan flips to Pro (via the webhook) and the property
-cap lifts.
+**Done when:** on the Billing page, **Upgrade to Plus/Pro** opens Stripe
+Checkout; after a test payment the plan flips to the chosen tier (via the
+webhook) and its features unlock (documents on Plus+, property cap lifts, AI on
+Pro).
 
 **Online rent collection uses Stripe Connect** so each landlord is paid into
 their own account (the platform account is only for Pro subscriptions):
@@ -228,6 +236,57 @@ their own account (the platform account is only for Pro subscriptions):
 - A leftover `notify_manager` database function (points at a hardcoded Zapier
   hook) has been locked down (no anon/authenticated execute). If you don't use
   it, drop it; the app sends email via `/api/email`, not this.
+
+---
+
+## Task 6 — Custom domain & email (corvelleproperty.com, via GoDaddy)
+
+The domain is registered with **GoDaddy**. Vercel hosts the site; GoDaddy holds
+the DNS. You point DNS at Vercel for the website and at your mailbox host for
+email.
+
+### 6a. Website — point the domain at Vercel
+
+1. **Vercel → your project → Settings → Domains → Add.** Add both
+   `corvelleproperty.com` and `www.corvelleproperty.com` (set the apex as primary
+   and let Vercel redirect `www` → apex, or vice-versa).
+2. Vercel then shows the exact DNS records to create. Typically:
+   - **Apex** `corvelleproperty.com` → an **A** record to `76.76.21.21` (or the
+     ALIAS/ANAME target Vercel shows — use whatever Vercel displays, it's authoritative).
+   - **`www`** → a **CNAME** to `cname.vercel-dns.com`.
+3. **GoDaddy → your domain → DNS → Manage DNS.** Add/replace those records.
+   Remove GoDaddy's default parking/forwarding A record on the apex first.
+   *(Do not change the NS records — leave the domain on GoDaddy nameservers unless
+   you deliberately move DNS to Vercel.)*
+4. Back in Vercel, the domain flips to **Valid Configuration** once DNS
+   propagates (minutes to a couple of hours) and Vercel auto-issues HTTPS.
+5. **Update Supabase Auth URLs:** Authentication → URL Configuration → set **Site
+   URL** to `https://corvelleproperty.com` and add it (plus
+   `https://corvelleproperty.com/**`) to the **Redirect URLs** allowlist, so magic
+   links and password resets land on the real domain.
+
+**Done when:** `https://corvelleproperty.com` loads the site with a valid
+certificate, and email sign-in links point at the custom domain.
+
+### 6b. Email — admin@corvelleproperty.com
+
+Two separate concerns; do both:
+
+- **Receiving mail** (an actual `admin@` inbox): pick a mailbox provider —
+  **Google Workspace**, **Microsoft 365**, or **GoDaddy's own email** — create the
+  `admin@corvelleproperty.com` mailbox, and add the **MX** records the provider
+  gives you in GoDaddy DNS. (GoDaddy email is simplest since the domain is already
+  there; Google Workspace is the most capable.)
+- **App sending** (transactional email from the app): verify `corvelleproperty.com`
+  in **Resend** (Domains → Add) and add the **SPF/DKIM (and DMARC)** TXT/CNAME
+  records it shows into GoDaddy DNS. Then the app can send from
+  `noreply@corvelleproperty.com` / `admin@corvelleproperty.com`.
+
+> MX (receiving) and SPF/DKIM (sending) are independent and coexist — adding
+> Resend's sending records does **not** affect your inbox, and vice-versa.
+
+**Done when:** you can receive a test email to `admin@corvelleproperty.com`, and
+Resend shows the domain **Verified**.
 
 ---
 

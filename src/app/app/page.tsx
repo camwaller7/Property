@@ -4,6 +4,7 @@ import Link from "next/link";
 import StatCard from "@/components/ui/StatCard";
 import Badge from "@/components/ui/Badge";
 import { usePortfolio } from "@/lib/portfolio";
+import { brand } from "@/lib/brand";
 import { daysUntil, fmtDate, fmtMoney, fmtPct } from "@/lib/format";
 
 export default function DashboardPage() {
@@ -47,7 +48,7 @@ export default function DashboardPage() {
         <p className="text-muted">Loading…</p>
       ) : stats.count === 0 ? (
         <div className="rounded-2xl border border-dashed border-border p-10 text-center">
-          <p className="text-muted">Welcome to Folio. Add your first property to get started.</p>
+          <p className="text-muted">Welcome to {brand.name}. Add your first property to get started.</p>
           <Link
             href="/app/properties"
             className="mt-4 inline-block rounded-full bg-foreground px-6 py-3 text-sm font-medium text-background transition-opacity hover:opacity-80"

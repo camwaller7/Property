@@ -10,7 +10,7 @@ import { usePortfolio } from "@/lib/portfolio";
 import type { Inspection, Tenancy } from "@/lib/types";
 import { fmtDate, fmtMoney } from "@/lib/format";
 import { maxBond, jurisdiction } from "@/lib/jurisdictions";
-import { isPro } from "@/lib/plans";
+import { hasDocuments } from "@/lib/plans";
 import { docForOnboardingKey } from "@/lib/documents";
 
 const statusTone = { upcoming: "warn", active: "good", ended: "neutral" } as const;
@@ -48,12 +48,13 @@ export default function TenancyCard({
     .sort((a, b) => (a.scheduled_date || "").localeCompare(b.scheduled_date || ""));
 
   const cap = maxBond(t.weekly_rent, property?.state);
-  const pro = isPro(org?.plan, org?.subscription_status);
+  const docsUnlocked = hasDocuments(org?.plan, org?.subscription_status);
   const juris = jurisdiction(property?.state);
 
-  // The contextual document/link for an onboarding step (Pro only).
+  // The contextual document/link for an onboarding step (paid plans with the
+  // document library — Plus and Pro).
   function docActionFor(key: string): { label: string; href: string; external?: boolean } | null {
-    if (!pro) return null;
+    if (!docsUnlocked) return null;
     const doc = docForOnboardingKey(key);
     if (!doc) return null;
     if (doc.type === "template") return { label: "Open template", href: `/app/documents/template/${doc.key}` };
@@ -169,9 +170,9 @@ export default function TenancyCard({
                 );
               })}
             </ul>
-            {!pro && (
+            {!docsUnlocked && (
               <p className="mt-2 text-xs text-muted">
-                <Link href="/app/billing" className="text-accent hover:underline">Upgrade to Pro</Link> to get the
+                <Link href="/app/billing" className="text-accent hover:underline">Upgrade to Plus</Link> to get the
                 right form/link beside each step.
               </p>
             )}
