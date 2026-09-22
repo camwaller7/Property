@@ -50,15 +50,18 @@ _Last updated: 2026-09-22_
 - [ ] **(you)** Create the Stripe products/prices and set `STRIPE_PRICE_{PLUS,PRO}_{MONTHLY,ANNUAL}` (SETUP Task 5).
 - [x] Pricing set from the market + cost analysis (Free / $20 / $45). See §5.
 
-### 3b. In-app AI assistant (Pro)
-- [ ] Assistant with access to the org's own data (RLS-scoped) — properties, tenancies,
-      applications, matters, documents.
-- [ ] Can **fill out forms & templates** (agreement, condition report, notices, handbook)
+### 3b. In-app AI assistant (Pro) ✅ (code done — API key pending)
+- [x] Assistant with access to the org's own data (RLS-scoped via the caller's token) —
+      properties, tenancies, submitted applications, matters, notices.
+- [x] Can **draft/fill forms & templates** (agreement, condition report, notices, handbook)
       from the landlord + tenant information already captured.
-- [ ] Chat/side-panel UI; actions produce editable, printable documents (never auto-send).
-- [ ] Built on the Claude API (server-side key); strictly org-scoped so it can never read
-      another account's data.
-- [ ] Guardrails: drafts to review (not legal advice); confirm before any outward action.
+- [x] Chat UI at `/app/assistant` (new nav item); produces editable Markdown drafts, never auto-sends.
+- [x] Built on the Claude API (server-side key at `/api/assistant`); strictly org-scoped so it
+      can never read another account's data. Pro-gated via `hasAI`.
+- [x] Guardrails baked into the system prompt: drafts to review (not legal advice), state-aware
+      assumptions flagged, no outward actions.
+- [ ] **(you)** Set `ANTHROPIC_API_KEY` in Vercel to switch it on. Optional `ANTHROPIC_MODEL`
+      (defaults to `claude-opus-5`; set `claude-sonnet-5` for ~5× lower cost per the §5 analysis).
 
 ## 4. Later growth (build)
 

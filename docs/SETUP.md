@@ -290,6 +290,23 @@ Resend shows the domain **Verified**.
 
 ---
 
+## Task 7 — AI assistant (Pro plan, optional)
+
+The Pro-tier AI assistant (`/app/assistant`) drafts documents and answers questions
+from the org's own data. It's off until you add a key.
+
+1. Get an **Anthropic API key** from console.anthropic.com → env `ANTHROPIC_API_KEY`
+   (server-only — do **not** prefix with `NEXT_PUBLIC`).
+2. *(Optional)* set `ANTHROPIC_MODEL`. Defaults to `claude-opus-5` (highest quality);
+   set `claude-sonnet-5` for roughly 5× lower cost per token (see ROADMAP §5).
+3. Add in Vercel and **redeploy**.
+
+**Done when:** a Pro org sees the **Assistant** tab respond; Free/Plus orgs see an
+upgrade prompt. The assistant only ever sees the caller's own org data (RLS-scoped
+by the user's token) and only drafts — it never sends anything.
+
+---
+
 ## Troubleshooting
 
 - **Vercel import can't find the repo** → the GitHub authorization in Task 1.1
