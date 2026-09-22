@@ -25,6 +25,7 @@ import type {
   PortalResource,
   Property,
   PropertyInput,
+  PropertyPhoto,
   RenovationCost,
   RenovationProject,
   Tenancy,
@@ -38,6 +39,7 @@ export type NoticeInput = Omit<Notice, "id" | "created_at">;
 export type ResourceInput = Omit<PortalResource, "id" | "created_at">;
 export type RenovationProjectInput = Omit<RenovationProject, "id" | "org_id" | "created_at">;
 export type RenovationCostInput = Omit<RenovationCost, "id" | "org_id" | "created_at">;
+export type PropertyPhotoInput = Omit<PropertyPhoto, "id" | "org_id" | "created_at">;
 
 interface PortfolioContextValue {
   properties: Property[];
@@ -50,6 +52,7 @@ interface PortfolioContextValue {
   maintenance: MaintenanceRequest[];
   renovationProjects: RenovationProject[];
   renovationCosts: RenovationCost[];
+  propertyPhotos: PropertyPhoto[];
   notifications: AppNotification[];
   unreadCount: number;
   org: Organization | null;
@@ -97,6 +100,8 @@ interface PortfolioContextValue {
   deleteRenovationProject: (id: string) => Promise<{ error?: string }>;
   addRenovationCost: (data: RenovationCostInput) => Promise<{ error?: string }>;
   deleteRenovationCost: (id: string) => Promise<{ error?: string }>;
+  addPropertyPhoto: (data: PropertyPhotoInput) => Promise<{ error?: string }>;
+  deletePropertyPhoto: (id: string, path: string) => Promise<{ error?: string }>;
 }
 
 const PortfolioContext = createContext<PortfolioContextValue | null>(null);
@@ -112,6 +117,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   const [maintenance, setMaintenance] = useState<MaintenanceRequest[]>([]);
   const [renovationProjects, setRenovationProjects] = useState<RenovationProject[]>([]);
   const [renovationCosts, setRenovationCosts] = useState<RenovationCost[]>([]);
+  const [propertyPhotos, setPropertyPhotos] = useState<PropertyPhoto[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [org, setOrg] = useState<Organization | null>(null);
   const [members, setMembers] = useState<OrgMember[]>([]);
@@ -184,6 +190,12 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       .select("*")
       .order("spent_on", { ascending: false });
     setRenovationCosts((renoCosts as RenovationCost[]) || []);
+
+    const { data: photos } = await supabase
+      .from("property_photos")
+      .select("*")
+      .order("created_at", { ascending: false });
+    setPropertyPhotos((photos as PropertyPhoto[]) || []);
 
     const { data: notifs } = await supabase
       .from("notifications")
@@ -609,6 +621,28 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     [reload]
   );
 
+  const addPropertyPhoto = useCallback(
+    async (data: PropertyPhotoInput) => {
+      const res = await supabase.from("property_photos").insert(data);
+      if (res.error) return { error: res.error.message };
+      await reload();
+      return {};
+    },
+    [reload]
+  );
+
+  const deletePropertyPhoto = useCallback(
+    async (id: string, path: string) => {
+      const res = await supabase.from("property_photos").delete().eq("id", id);
+      if (res.error) return { error: res.error.message };
+      // Best-effort remove the stored file too (row is the source of truth).
+      await supabase.storage.from("property-photos").remove([path]);
+      await reload();
+      return {};
+    },
+    [reload]
+  );
+
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   const myRole: OrgRole | null =
@@ -630,6 +664,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     maintenance,
     renovationProjects,
     renovationCosts,
+    propertyPhotos,
     notifications,
     unreadCount,
     org,
@@ -665,6 +700,8 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     deleteRenovationProject,
     addRenovationCost,
     deleteRenovationCost,
+    addPropertyPhoto,
+    deletePropertyPhoto,
   };
 
   return <PortfolioContext.Provider value={value}>{children}</PortfolioContext.Provider>;

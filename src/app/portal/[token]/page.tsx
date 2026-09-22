@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { brand } from "@/lib/brand";
 import Badge from "@/components/ui/Badge";
+import InspectionChecklist from "@/components/InspectionChecklist";
 import { Field, Select, Textarea } from "@/components/app/Field";
 import { fmtDate, fmtMoney, nextWeekdayDate } from "@/lib/format";
 import type { MaintenanceRequest, Notice, Payment, PortalResource, Tenancy } from "@/lib/types";
@@ -249,6 +250,15 @@ export default function PortalPage() {
             ))}
           </ul>
         )}
+      </Card>
+
+      {/* Inspection preparation checklist — always available to the tenant */}
+      <Card title="Before your inspection">
+        <p className="mb-4 text-sm text-muted">
+          Here&apos;s everything to have done before a routine inspection. Work through it room by room —
+          it&apos;s the same checklist your property manager uses.
+        </p>
+        <InspectionChecklist />
       </Card>
 
       {/* Documents & handouts */}
