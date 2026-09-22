@@ -9,8 +9,9 @@ import { activePlan } from "@/lib/plans";
 // snapshot of the org's data and let Claude answer questions and draft/fill
 // documents from the landlord + tenant information already captured.
 //
-// Requires ANTHROPIC_API_KEY (server-only). Model defaults to claude-opus-5;
-// set ANTHROPIC_MODEL to override (e.g. claude-sonnet-5 for ~5x lower cost).
+// Requires ANTHROPIC_API_KEY (server-only). Model defaults to claude-sonnet-5
+// (the costed choice for this feature); set ANTHROPIC_MODEL to override
+// (e.g. claude-opus-5 for higher-quality drafting at higher cost).
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
@@ -102,7 +103,7 @@ export async function POST(req: Request) {
     "```",
   ].join("\n");
 
-  const model = process.env.ANTHROPIC_MODEL || "claude-opus-5";
+  const model = process.env.ANTHROPIC_MODEL || "claude-sonnet-5";
   const client = new Anthropic({ apiKey });
 
   try {

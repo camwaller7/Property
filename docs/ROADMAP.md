@@ -61,7 +61,7 @@ _Last updated: 2026-09-22_
 - [x] Guardrails baked into the system prompt: drafts to review (not legal advice), state-aware
       assumptions flagged, no outward actions.
 - [ ] **(you)** Set `ANTHROPIC_API_KEY` in Vercel to switch it on. Optional `ANTHROPIC_MODEL`
-      (defaults to `claude-opus-5`; set `claude-sonnet-5` for ~5× lower cost per the §5 analysis).
+      (defaults to `claude-sonnet-5` per the §5 analysis; set `claude-opus-5` for higher quality).
 
 ## 4. Later growth (build)
 

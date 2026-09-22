@@ -297,8 +297,9 @@ from the org's own data. It's off until you add a key.
 
 1. Get an **Anthropic API key** from console.anthropic.com → env `ANTHROPIC_API_KEY`
    (server-only — do **not** prefix with `NEXT_PUBLIC`).
-2. *(Optional)* set `ANTHROPIC_MODEL`. Defaults to `claude-opus-5` (highest quality);
-   set `claude-sonnet-5` for roughly 5× lower cost per token (see ROADMAP §5).
+2. *(Optional)* set `ANTHROPIC_MODEL`. Defaults to `claude-sonnet-5` (the costed
+   choice — see ROADMAP §5); set `claude-opus-5` for higher-quality drafting at
+   higher cost per token.
 3. Add in Vercel and **redeploy**.
 
 **Done when:** a Pro org sees the **Assistant** tab respond; Free/Plus orgs see an
