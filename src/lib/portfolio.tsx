@@ -25,6 +25,8 @@ import type {
   PortalResource,
   Property,
   PropertyInput,
+  RenovationCost,
+  RenovationProject,
   Tenancy,
   TenantApplication,
 } from "./types";
@@ -34,6 +36,8 @@ export type TenancyInput = Omit<Tenancy, "id" | "created_at">;
 export type InspectionInput = Omit<Inspection, "id" | "created_at">;
 export type NoticeInput = Omit<Notice, "id" | "created_at">;
 export type ResourceInput = Omit<PortalResource, "id" | "created_at">;
+export type RenovationProjectInput = Omit<RenovationProject, "id" | "org_id" | "created_at">;
+export type RenovationCostInput = Omit<RenovationCost, "id" | "org_id" | "created_at">;
 
 interface PortfolioContextValue {
   properties: Property[];
@@ -44,6 +48,8 @@ interface PortfolioContextValue {
   notices: Notice[];
   resources: PortalResource[];
   maintenance: MaintenanceRequest[];
+  renovationProjects: RenovationProject[];
+  renovationCosts: RenovationCost[];
   notifications: AppNotification[];
   unreadCount: number;
   org: Organization | null;
@@ -87,6 +93,10 @@ interface PortfolioContextValue {
   deleteNotice: (id: string) => Promise<{ error?: string }>;
   addResource: (data: ResourceInput) => Promise<{ error?: string }>;
   deleteResource: (id: string) => Promise<{ error?: string }>;
+  saveRenovationProject: (data: RenovationProjectInput, id?: string) => Promise<{ error?: string }>;
+  deleteRenovationProject: (id: string) => Promise<{ error?: string }>;
+  addRenovationCost: (data: RenovationCostInput) => Promise<{ error?: string }>;
+  deleteRenovationCost: (id: string) => Promise<{ error?: string }>;
 }
 
 const PortfolioContext = createContext<PortfolioContextValue | null>(null);
@@ -100,6 +110,8 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   const [notices, setNotices] = useState<Notice[]>([]);
   const [resources, setResources] = useState<PortalResource[]>([]);
   const [maintenance, setMaintenance] = useState<MaintenanceRequest[]>([]);
+  const [renovationProjects, setRenovationProjects] = useState<RenovationProject[]>([]);
+  const [renovationCosts, setRenovationCosts] = useState<RenovationCost[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [org, setOrg] = useState<Organization | null>(null);
   const [members, setMembers] = useState<OrgMember[]>([]);
@@ -160,6 +172,18 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       .select("*")
       .order("created_at", { ascending: false });
     setMaintenance((maint as MaintenanceRequest[]) || []);
+
+    const { data: renoProj } = await supabase
+      .from("renovation_projects")
+      .select("*")
+      .order("created_at", { ascending: false });
+    setRenovationProjects((renoProj as RenovationProject[]) || []);
+
+    const { data: renoCosts } = await supabase
+      .from("renovation_costs")
+      .select("*")
+      .order("spent_on", { ascending: false });
+    setRenovationCosts((renoCosts as RenovationCost[]) || []);
 
     const { data: notifs } = await supabase
       .from("notifications")
@@ -542,6 +566,49 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     await supabase.from("notifications").update({ read: true }).in("id", unreadIds);
   }, [notifications]);
 
+  const saveRenovationProject = useCallback(
+    async (data: RenovationProjectInput, id?: string) => {
+      const res = id
+        ? await supabase.from("renovation_projects").update(data).eq("id", id)
+        : await supabase.from("renovation_projects").insert(data);
+      if (res.error) return { error: res.error.message };
+      await reload();
+      return {};
+    },
+    [reload]
+  );
+
+  const deleteRenovationProject = useCallback(
+    async (id: string) => {
+      // Costs cascade-delete in the DB (FK on delete cascade).
+      const res = await supabase.from("renovation_projects").delete().eq("id", id);
+      if (res.error) return { error: res.error.message };
+      await reload();
+      return {};
+    },
+    [reload]
+  );
+
+  const addRenovationCost = useCallback(
+    async (data: RenovationCostInput) => {
+      const res = await supabase.from("renovation_costs").insert(data);
+      if (res.error) return { error: res.error.message };
+      await reload();
+      return {};
+    },
+    [reload]
+  );
+
+  const deleteRenovationCost = useCallback(
+    async (id: string) => {
+      const res = await supabase.from("renovation_costs").delete().eq("id", id);
+      if (res.error) return { error: res.error.message };
+      await reload();
+      return {};
+    },
+    [reload]
+  );
+
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   const myRole: OrgRole | null =
@@ -561,6 +628,8 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     notices,
     resources,
     maintenance,
+    renovationProjects,
+    renovationCosts,
     notifications,
     unreadCount,
     org,
@@ -592,6 +661,10 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     deleteNotice,
     addResource,
     deleteResource,
+    saveRenovationProject,
+    deleteRenovationProject,
+    addRenovationCost,
+    deleteRenovationCost,
   };
 
   return <PortfolioContext.Provider value={value}>{children}</PortfolioContext.Provider>;

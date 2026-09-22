@@ -192,6 +192,35 @@ export interface TenantApplication {
   created_at?: string;
 }
 
+export type RenovationStatus = "planning" | "in_progress" | "complete" | "on_hold";
+export type RenovationCategory = "capital_works" | "repairs" | "depreciable" | "other";
+
+export interface RenovationProject {
+  id: string;
+  org_id?: string | null;
+  property_id: string | null;
+  name: string;
+  status: RenovationStatus;
+  budget: number | null;
+  started_on: string | null;
+  completed_on: string | null;
+  notes: string | null;
+  created_at?: string;
+}
+
+export interface RenovationCost {
+  id: string;
+  org_id?: string | null;
+  project_id: string | null;
+  property_id: string | null;
+  description: string;
+  category: RenovationCategory;
+  amount: number | null;
+  spent_on: string | null;
+  receipt_path: string | null;
+  created_at?: string;
+}
+
 export type InspectionKind = "entry" | "routine" | "exit";
 export type InspectionStatus = "scheduled" | "completed" | "cancelled";
 
