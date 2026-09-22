@@ -16,6 +16,7 @@ const nav = [
   { href: "/app/renovations", label: "Renovations" },
   { href: "/app/management", label: "Management" },
   { href: "/app/documents", label: "Documents" },
+  { href: "/app/assistant", label: "Assistant" },
   { href: "/app/resources", label: "Resources" },
   { href: "/app/team", label: "Team" },
   { href: "/app/billing", label: "Billing" },
