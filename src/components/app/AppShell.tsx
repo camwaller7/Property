@@ -7,6 +7,7 @@ import type { Session } from "@supabase/supabase-js";
 import { brand } from "@/lib/brand";
 import { supabase } from "@/lib/supabase";
 import { PortfolioProvider } from "@/lib/portfolio";
+import { PASSWORD_HINT, passwordProblem } from "@/lib/password";
 import NotificationBell from "./NotificationBell";
 
 const nav = [
@@ -101,9 +102,12 @@ function LoginScreen() {
       setErr("Enter your email and password.");
       return;
     }
-    if (mode === "signup" && password.length < 8) {
-      setErr("Choose a password of at least 8 characters.");
-      return;
+    if (mode === "signup") {
+      const problem = passwordProblem(password);
+      if (problem) {
+        setErr(problem);
+        return;
+      }
     }
     setBusy(true);
     setErr("");
@@ -176,29 +180,42 @@ function LoginScreen() {
         <p className="mt-2 text-center text-sm text-muted">
           {mode === "signin" ? "Sign in to your workspace" : "Create your free account"}
         </p>
-        <input
-          type="email"
-          autoFocus
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="Email"
-          className="mt-5 w-full rounded-xl border border-border bg-background px-4 py-3 outline-none focus:border-accent"
-        />
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && submit()}
-          placeholder={mode === "signup" ? "Choose a password (8+ characters)" : "Password"}
-          className="mt-3 w-full rounded-xl border border-border bg-background px-4 py-3 outline-none focus:border-accent"
-        />
-        <button
-          onClick={submit}
-          disabled={busy}
-          className="mt-4 w-full rounded-full bg-foreground px-6 py-3 text-sm font-medium text-background transition-opacity hover:opacity-80 disabled:opacity-50"
+        {/* A real <form> with autocomplete so the browser's password manager
+            reliably offers to save and fill credentials. */}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            submit();
+          }}
         >
-          {busy ? "Please wait…" : mode === "signin" ? "Sign in" : "Create account"}
-        </button>
+          <input
+            type="email"
+            name="email"
+            autoComplete="email"
+            autoFocus
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Email"
+            className="mt-5 w-full rounded-xl border border-border bg-background px-4 py-3 outline-none focus:border-accent"
+          />
+          <input
+            type="password"
+            name="password"
+            autoComplete={mode === "signup" ? "new-password" : "current-password"}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder={mode === "signup" ? "Choose a password" : "Password"}
+            className="mt-3 w-full rounded-xl border border-border bg-background px-4 py-3 outline-none focus:border-accent"
+          />
+          {mode === "signup" && <p className="mt-2 text-xs text-muted">{PASSWORD_HINT}</p>}
+          <button
+            type="submit"
+            disabled={busy}
+            className="mt-4 w-full rounded-full bg-foreground px-6 py-3 text-sm font-medium text-background transition-opacity hover:opacity-80 disabled:opacity-50"
+          >
+            {busy ? "Please wait…" : mode === "signin" ? "Sign in" : "Create account"}
+          </button>
+        </form>
         {notice && <p className="mt-3 text-center text-sm text-good">{notice}</p>}
         <p className="mt-2 min-h-[18px] text-center text-sm text-bad">{err}</p>
 

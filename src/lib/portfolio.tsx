@@ -15,6 +15,7 @@ import type {
   Inspection,
   MaintenanceRequest,
   MaintenanceStatus,
+  MaintenanceUrgency,
   Notice,
   OnboardingItem,
   Organization,
@@ -60,6 +61,16 @@ interface PortfolioContextValue {
   removeMember: (userId: string) => Promise<{ error?: string }>;
   updateRequestStatus: (id: string, status: MaintenanceStatus) => Promise<{ error?: string }>;
   addMatterMessage: (requestId: string, body: string) => Promise<{ error?: string }>;
+  addTask: (input: {
+    property_id: string;
+    tenancy_id?: string | null;
+    kind: string;
+    category: string;
+    title: string;
+    description?: string | null;
+    urgency: MaintenanceUrgency;
+    due_date?: string | null;
+  }) => Promise<{ error?: string }>;
   markNotificationsRead: () => Promise<void>;
   saveProperty: (data: PropertyInput, id?: string) => Promise<{ error?: string }>;
   addPayment: (
@@ -474,6 +485,36 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     [reload, maintenance, emailTenantForRequest]
   );
 
+  const addTask = useCallback(
+    async (input: {
+      property_id: string;
+      tenancy_id?: string | null;
+      kind: string;
+      category: string;
+      title: string;
+      description?: string | null;
+      urgency: MaintenanceUrgency;
+      due_date?: string | null;
+    }) => {
+      const res = await supabase.from("maintenance_requests").insert({
+        property_id: input.property_id,
+        tenancy_id: input.tenancy_id ?? null,
+        kind: input.kind,
+        category: input.category,
+        title: input.title,
+        description: input.description ?? null,
+        urgency: input.urgency,
+        due_date: input.due_date ?? null,
+        source: "manager",
+        status: "open",
+      });
+      if (res.error) return { error: res.error.message };
+      await reload();
+      return {};
+    },
+    [reload]
+  );
+
   const addMatterMessage = useCallback(
     async (requestId: string, body: string) => {
       if (!body.trim()) return { error: "Message is empty." };
@@ -537,6 +578,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     removeMember,
     updateRequestStatus,
     addMatterMessage,
+    addTask,
     markNotificationsRead,
     saveProperty,
     addPayment,

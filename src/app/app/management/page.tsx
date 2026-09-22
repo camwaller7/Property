@@ -7,6 +7,7 @@ import Badge from "@/components/ui/Badge";
 import TenancyCard from "@/components/app/TenancyCard";
 import TenancyForm from "@/components/app/TenancyForm";
 import MaintenanceManager from "@/components/app/MaintenanceManager";
+import PropertyCalendar from "@/components/app/PropertyCalendar";
 import { usePortfolio } from "@/lib/portfolio";
 import type { Tenancy } from "@/lib/types";
 import { daysUntil, fmtDate } from "@/lib/format";
@@ -66,6 +67,8 @@ export default function ManagementPage() {
       ) : (
         <>
           <MaintenanceManager />
+
+          <PropertyCalendar />
 
           {upcomingInspections.length > 0 && (
             <section className="mb-8 rounded-2xl border border-border p-5">

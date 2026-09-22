@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { brand } from "@/lib/brand";
+import { PASSWORD_HINT, passwordProblem } from "@/lib/password";
 
 // Reached from a password-reset email link. The link established a session
 // (detectSessionInUrl), so the user just sets a new password here.
@@ -30,8 +31,9 @@ export default function ResetPasswordPage() {
   }, []);
 
   async function save() {
-    if (password.length < 8) {
-      setErr("Choose a password of at least 8 characters.");
+    const problem = passwordProblem(password);
+    if (problem) {
+      setErr(problem);
       return;
     }
     setBusy(true);
@@ -60,13 +62,16 @@ export default function ResetPasswordPage() {
           <>
             <input
               type="password"
+              name="new-password"
+              autoComplete="new-password"
               autoFocus
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && save()}
-              placeholder="New password (8+ characters)"
+              placeholder="New password"
               className="mt-5 w-full rounded-xl border border-border bg-background px-4 py-3 outline-none focus:border-accent"
             />
+            <p className="mt-2 text-xs text-muted">{PASSWORD_HINT}</p>
             <button
               onClick={save}
               disabled={busy}

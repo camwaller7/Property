@@ -78,3 +78,10 @@ _Last updated: 2026-09-22_
 - [x] Online rent via **Stripe Connect** (landlords collect their own rent).
 - [x] Documents & forms library + AU-wide state jurisdictions.
 - [x] Billing scaffolding (Stripe subscriptions).
+- [x] Management — outstanding tasks & requests register (raise repairs + any other
+      matter, due dates, open/all filter, status threads).
+- [x] Management — per-property calendar (month grid + upcoming agenda: rent due,
+      inspections, lease start/end, move-ins, notices, task due dates).
+- [x] Login — password sign-in now persists (proper `<form>` + autocomplete so the
+      browser saves/fills credentials); stronger password policy (10+ chars, upper,
+      lower, number) on sign-up and reset with an on-screen hint.

@@ -129,6 +129,8 @@ export interface MaintenanceRequest {
   urgency: MaintenanceUrgency;
   status: MaintenanceStatus;
   photo_path: string | null;
+  due_date?: string | null;
+  source?: "tenant" | "manager";
   messages?: MatterMessage[];
   created_at?: string;
   resolved_at: string | null;
