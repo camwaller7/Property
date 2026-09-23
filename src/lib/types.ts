@@ -192,29 +192,17 @@ export interface TenantApplication {
   created_at?: string;
 }
 
-export type RenovationStatus = "planning" | "in_progress" | "complete" | "on_hold";
-export type RenovationCategory = "capital_works" | "repairs" | "depreciable" | "other";
+// Property cost tracking. Every investor has costs (rates, insurance, loan
+// interest = holding; repairs = maintenance; capital works = improvement),
+// so this is generic rather than renovation-specific.
+export type CostCategory = "holding" | "maintenance" | "improvement";
 
-export interface RenovationProject {
+export interface PropertyCost {
   id: string;
   org_id?: string | null;
-  property_id: string | null;
-  name: string;
-  status: RenovationStatus;
-  budget: number | null;
-  started_on: string | null;
-  completed_on: string | null;
-  notes: string | null;
-  created_at?: string;
-}
-
-export interface RenovationCost {
-  id: string;
-  org_id?: string | null;
-  project_id: string | null;
   property_id: string | null;
   description: string;
-  category: RenovationCategory;
+  category: CostCategory;
   amount: number | null;
   spent_on: string | null;
   receipt_path: string | null;

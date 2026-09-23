@@ -13,7 +13,7 @@ import NotificationBell from "./NotificationBell";
 const nav = [
   { href: "/app", label: "Dashboard", exact: true },
   { href: "/app/properties", label: "Properties" },
-  { href: "/app/renovations", label: "Renovations" },
+  { href: "/app/costs", label: "Cost tracking" },
   { href: "/app/management", label: "Management" },
   { href: "/app/documents", label: "Documents" },
   { href: "/app/assistant", label: "Assistant" },

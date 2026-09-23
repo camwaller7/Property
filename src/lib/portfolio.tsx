@@ -24,10 +24,9 @@ import type {
   Payment,
   PortalResource,
   Property,
+  PropertyCost,
   PropertyInput,
   PropertyPhoto,
-  RenovationCost,
-  RenovationProject,
   Tenancy,
   TenantApplication,
 } from "./types";
@@ -37,8 +36,7 @@ export type TenancyInput = Omit<Tenancy, "id" | "created_at">;
 export type InspectionInput = Omit<Inspection, "id" | "created_at">;
 export type NoticeInput = Omit<Notice, "id" | "created_at">;
 export type ResourceInput = Omit<PortalResource, "id" | "created_at">;
-export type RenovationProjectInput = Omit<RenovationProject, "id" | "org_id" | "created_at">;
-export type RenovationCostInput = Omit<RenovationCost, "id" | "org_id" | "created_at">;
+export type PropertyCostInput = Omit<PropertyCost, "id" | "org_id" | "created_at">;
 export type PropertyPhotoInput = Omit<PropertyPhoto, "id" | "org_id" | "created_at">;
 
 interface PortfolioContextValue {
@@ -50,8 +48,7 @@ interface PortfolioContextValue {
   notices: Notice[];
   resources: PortalResource[];
   maintenance: MaintenanceRequest[];
-  renovationProjects: RenovationProject[];
-  renovationCosts: RenovationCost[];
+  propertyCosts: PropertyCost[];
   propertyPhotos: PropertyPhoto[];
   notifications: AppNotification[];
   unreadCount: number;
@@ -96,10 +93,8 @@ interface PortfolioContextValue {
   deleteNotice: (id: string) => Promise<{ error?: string }>;
   addResource: (data: ResourceInput) => Promise<{ error?: string }>;
   deleteResource: (id: string) => Promise<{ error?: string }>;
-  saveRenovationProject: (data: RenovationProjectInput, id?: string) => Promise<{ error?: string }>;
-  deleteRenovationProject: (id: string) => Promise<{ error?: string }>;
-  addRenovationCost: (data: RenovationCostInput) => Promise<{ error?: string }>;
-  deleteRenovationCost: (id: string) => Promise<{ error?: string }>;
+  addPropertyCost: (data: PropertyCostInput) => Promise<{ error?: string }>;
+  deletePropertyCost: (id: string) => Promise<{ error?: string }>;
   addPropertyPhoto: (data: PropertyPhotoInput) => Promise<{ error?: string }>;
   deletePropertyPhoto: (id: string, path: string) => Promise<{ error?: string }>;
 }
@@ -115,8 +110,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   const [notices, setNotices] = useState<Notice[]>([]);
   const [resources, setResources] = useState<PortalResource[]>([]);
   const [maintenance, setMaintenance] = useState<MaintenanceRequest[]>([]);
-  const [renovationProjects, setRenovationProjects] = useState<RenovationProject[]>([]);
-  const [renovationCosts, setRenovationCosts] = useState<RenovationCost[]>([]);
+  const [propertyCosts, setPropertyCosts] = useState<PropertyCost[]>([]);
   const [propertyPhotos, setPropertyPhotos] = useState<PropertyPhoto[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [org, setOrg] = useState<Organization | null>(null);
@@ -179,17 +173,11 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       .order("created_at", { ascending: false });
     setMaintenance((maint as MaintenanceRequest[]) || []);
 
-    const { data: renoProj } = await supabase
-      .from("renovation_projects")
-      .select("*")
-      .order("created_at", { ascending: false });
-    setRenovationProjects((renoProj as RenovationProject[]) || []);
-
-    const { data: renoCosts } = await supabase
-      .from("renovation_costs")
+    const { data: costs } = await supabase
+      .from("property_costs")
       .select("*")
       .order("spent_on", { ascending: false });
-    setRenovationCosts((renoCosts as RenovationCost[]) || []);
+    setPropertyCosts((costs as PropertyCost[]) || []);
 
     const { data: photos } = await supabase
       .from("property_photos")
@@ -578,11 +566,9 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     await supabase.from("notifications").update({ read: true }).in("id", unreadIds);
   }, [notifications]);
 
-  const saveRenovationProject = useCallback(
-    async (data: RenovationProjectInput, id?: string) => {
-      const res = id
-        ? await supabase.from("renovation_projects").update(data).eq("id", id)
-        : await supabase.from("renovation_projects").insert(data);
+  const addPropertyCost = useCallback(
+    async (data: PropertyCostInput) => {
+      const res = await supabase.from("property_costs").insert(data);
       if (res.error) return { error: res.error.message };
       await reload();
       return {};
@@ -590,30 +576,9 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     [reload]
   );
 
-  const deleteRenovationProject = useCallback(
+  const deletePropertyCost = useCallback(
     async (id: string) => {
-      // Costs cascade-delete in the DB (FK on delete cascade).
-      const res = await supabase.from("renovation_projects").delete().eq("id", id);
-      if (res.error) return { error: res.error.message };
-      await reload();
-      return {};
-    },
-    [reload]
-  );
-
-  const addRenovationCost = useCallback(
-    async (data: RenovationCostInput) => {
-      const res = await supabase.from("renovation_costs").insert(data);
-      if (res.error) return { error: res.error.message };
-      await reload();
-      return {};
-    },
-    [reload]
-  );
-
-  const deleteRenovationCost = useCallback(
-    async (id: string) => {
-      const res = await supabase.from("renovation_costs").delete().eq("id", id);
+      const res = await supabase.from("property_costs").delete().eq("id", id);
       if (res.error) return { error: res.error.message };
       await reload();
       return {};
@@ -662,8 +627,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     notices,
     resources,
     maintenance,
-    renovationProjects,
-    renovationCosts,
+    propertyCosts,
     propertyPhotos,
     notifications,
     unreadCount,
@@ -696,10 +660,8 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     deleteNotice,
     addResource,
     deleteResource,
-    saveRenovationProject,
-    deleteRenovationProject,
-    addRenovationCost,
-    deleteRenovationCost,
+    addPropertyCost,
+    deletePropertyCost,
     addPropertyPhoto,
     deletePropertyPhoto,
   };
