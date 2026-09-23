@@ -66,9 +66,10 @@ _Last updated: 2026-09-22_
 ## 4. Later growth (build)
 
 - [ ] **Marketing / lead-capture site** (company front + client acquisition).
-- [x] **Renovations** module — projects per property, tax-categorised costs, receipt
-      uploads (private org-scoped bucket), budget-vs-spent, per-property cost-vs-value,
-      CSV export. *(org-scoped RLS; advisor clean.)*
+- [x] **Cost tracking** module (generalised from Renovations — every investor has costs) —
+      log any property cost from receipts/bills, categorised **holding / maintenance / improvement**,
+      with a breakdown analytics panel (category split + %), property & financial-year filters,
+      receipt uploads (private org-scoped bucket) and CSV export. *(org-scoped RLS; advisor clean.)*
 - [ ] **Development** module (feasibility, stages, budgets, approvals).
 - [ ] **Deeper investment analytics** (cash-on-cash, gearing status, portfolio trends).
 - [ ] **Tenant scheduled email reminders** (rent due to tenants) — needs a server-side
