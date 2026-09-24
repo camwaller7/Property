@@ -3,6 +3,7 @@
 import TenancyCard from "./TenancyCard";
 import LeasePeople from "./LeasePeople";
 import PropertyPhotos from "./PropertyPhotos";
+import SendTenantDocuments from "./SendTenantDocuments";
 import InspectionChecklist from "@/components/InspectionChecklist";
 import { useState } from "react";
 import type { Tenancy } from "@/lib/types";
@@ -25,6 +26,8 @@ export default function LeaseDetail({
 
       <div className="rounded-2xl border border-border p-5">
         <LeasePeople tenancy={tenancy} />
+
+        <SendTenantDocuments tenancy={tenancy} />
 
         {tenancy.property_id && <PropertyPhotos propertyId={tenancy.property_id} />}
 

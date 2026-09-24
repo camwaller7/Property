@@ -156,6 +156,7 @@ function dotClass(type: string): string {
   switch (type) {
     case "rent": return "bg-warn";
     case "notice": return "bg-warn";
+    case "reminder": return "bg-warn";
     case "task": return "bg-bad";
     case "movein": return "bg-good";
     default: return "bg-accent";
