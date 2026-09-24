@@ -93,17 +93,6 @@ function TenantLoginForm() {
     if (error) setErr(error.message);
   }
 
-  async function sendMagicLink() {
-    if (!email) return setErr("Enter your email first.");
-    setBusy(true);
-    setErr("");
-    setNotice("");
-    const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: callbackUrl() } });
-    setBusy(false);
-    if (error) setErr(error.message);
-    else setNotice("Magic link sent — check your email to sign in.");
-  }
-
   async function sendReset() {
     if (!email) return setErr("Enter your email first, then tap reset.");
     setBusy(true);
@@ -155,10 +144,7 @@ function TenantLoginForm() {
         </form>
         {notice && <p className="mt-3 text-center text-sm text-good">{notice}</p>}
         <p className="mt-2 min-h-[18px] text-center text-sm text-bad">{err}</p>
-        <div className="mt-3 flex items-center justify-center gap-4 text-sm">
-          <button onClick={sendMagicLink} disabled={busy} className="text-accent hover:underline disabled:opacity-50">
-            Email me a magic link
-          </button>
+        <div className="mt-3 flex items-center justify-center text-sm">
           <button onClick={sendReset} disabled={busy} className="text-muted hover:text-foreground disabled:opacity-50">
             Forgot password?
           </button>
