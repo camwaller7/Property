@@ -25,7 +25,11 @@ export default function PortalPanel({ tenancy }: { tenancy: Tenancy }) {
   const [posting, setPosting] = useState(false);
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const link = tenancy.portal_token ? `${origin}/portal/${tenancy.portal_token}` : "";
+  // The link sent to tenants is the account-creation page: they set a password,
+  // then sign in from the landing page's Tenant login. `previewLink` is the raw
+  // token portal, kept so the manager can preview what the tenant will see.
+  const link = tenancy.portal_token ? `${origin}/tenant/claim/${tenancy.portal_token}` : "";
+  const previewLink = tenancy.portal_token ? `${origin}/portal/${tenancy.portal_token}` : "";
   const myNotices = notices.filter(
     (n) => n.tenancy_id === tenancy.id || (!n.tenancy_id && n.property_id === tenancy.property_id)
   );
@@ -76,7 +80,7 @@ export default function PortalPanel({ tenancy }: { tenancy: Tenancy }) {
 
   const emailBody = `Hi ${tenancy.tenant_name || "there"},
 
-You can access your tenant portal any time using the link below — it has your rent details, notices and important documents:
+Set up your tenant portal account using the link below. Once you've created your account you can sign in any time from the Tenant login — you'll find your rent details, notices, inspections and important documents there:
 
 ${link}
 
@@ -106,14 +110,15 @@ Kind regards`;
       ) : (
         <div className="space-y-4">
           <div className="rounded-xl border border-border bg-surface p-3">
-            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Portal link</div>
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Tenant sign-up link</div>
             <div className="break-all rounded-lg border border-border bg-background px-3 py-2 text-sm">{link}</div>
+            <p className="mt-1 text-xs text-muted">Sending this lets the tenant create their account, then sign in from the Tenant login.</p>
             <div className="mt-2 flex flex-wrap gap-2">
               <button onClick={copyLink} className="rounded-full border border-border px-4 py-1.5 text-xs font-medium hover:bg-background">
                 Copy link
               </button>
-              <a href={link} target="_blank" rel="noopener noreferrer" className="rounded-full border border-border px-4 py-1.5 text-xs font-medium hover:bg-background">
-                Preview
+              <a href={previewLink} target="_blank" rel="noopener noreferrer" className="rounded-full border border-border px-4 py-1.5 text-xs font-medium hover:bg-background">
+                Preview portal
               </a>
               {tenancy.tenant_email && (
                 <button onClick={() => setEmailOpen(true)} className="rounded-full border border-border px-4 py-1.5 text-xs font-medium hover:bg-background">
