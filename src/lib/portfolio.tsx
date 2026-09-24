@@ -30,6 +30,7 @@ import type {
   PropertyPhoto,
   Tenancy,
   TenantApplication,
+  TenantDocument,
 } from "./types";
 import { daysUntil, portfolioStats } from "./format";
 
@@ -115,6 +116,8 @@ interface PortfolioContextValue {
   deletePropertyCost: (id: string) => Promise<{ error?: string }>;
   addPropertyPhoto: (data: PropertyPhotoInput) => Promise<{ error?: string }>;
   deletePropertyPhoto: (id: string, path: string) => Promise<{ error?: string }>;
+  addTenantDocument: (leaseTenantId: string, doc: TenantDocument) => Promise<{ error?: string }>;
+  removeTenantDocument: (leaseTenantId: string, doc: TenantDocument) => Promise<{ error?: string }>;
 }
 
 const PortfolioContext = createContext<PortfolioContextValue | null>(null);
@@ -704,6 +707,38 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     [reload]
   );
 
+  const addTenantDocument = useCallback(
+    async (leaseTenantId: string, doc: TenantDocument) => {
+      const lt = leaseTenants.find((x) => x.id === leaseTenantId);
+      const next = [...(lt?.documents ?? []), doc];
+      const res = await supabase
+        .from("lease_tenants")
+        .update({ documents: next })
+        .eq("id", leaseTenantId);
+      if (res.error) return { error: res.error.message };
+      await reload();
+      return {};
+    },
+    [leaseTenants, reload]
+  );
+
+  const removeTenantDocument = useCallback(
+    async (leaseTenantId: string, doc: TenantDocument) => {
+      const lt = leaseTenants.find((x) => x.id === leaseTenantId);
+      const next = (lt?.documents ?? []).filter((d) => d.path !== doc.path);
+      const res = await supabase
+        .from("lease_tenants")
+        .update({ documents: next })
+        .eq("id", leaseTenantId);
+      if (res.error) return { error: res.error.message };
+      // Best-effort remove the stored file too (row is the source of truth).
+      await supabase.storage.from("tenant-documents").remove([doc.path]);
+      await reload();
+      return {};
+    },
+    [leaseTenants, reload]
+  );
+
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   const myRole: OrgRole | null =
@@ -761,6 +796,8 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     deletePropertyCost,
     addPropertyPhoto,
     deletePropertyPhoto,
+    addTenantDocument,
+    removeTenantDocument,
   };
 
   return <PortfolioContext.Provider value={value}>{children}</PortfolioContext.Provider>;

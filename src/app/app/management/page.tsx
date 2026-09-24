@@ -3,18 +3,18 @@
 import { useState } from "react";
 import Link from "next/link";
 import Modal from "@/components/ui/Modal";
-import Badge from "@/components/ui/Badge";
-import TenancyCard from "@/components/app/TenancyCard";
 import TenancyForm from "@/components/app/TenancyForm";
-import MaintenanceManager from "@/components/app/MaintenanceManager";
-import PropertyCalendar from "@/components/app/PropertyCalendar";
+import ManagementDashboard from "@/components/app/ManagementDashboard";
+import TenantsTab from "@/components/app/TenantsTab";
 import InspectionChecklist from "@/components/InspectionChecklist";
 import { usePortfolio } from "@/lib/portfolio";
 import type { Tenancy } from "@/lib/types";
-import { daysUntil, fmtDate } from "@/lib/format";
+
+type Tab = "dashboard" | "tenants";
 
 export default function ManagementPage() {
-  const { properties, tenancies, inspections, loading, error } = usePortfolio();
+  const { properties, loading, error } = usePortfolio();
+  const [tab, setTab] = useState<Tab>("dashboard");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Tenancy | undefined>(undefined);
   const [showChecklist, setShowChecklist] = useState(false);
@@ -28,19 +28,12 @@ export default function ManagementPage() {
     setModalOpen(true);
   }
 
-  const upcomingInspections = inspections
-    .filter((i) => i.status === "scheduled")
-    .map((i) => ({ i, d: daysUntil(i.scheduled_date) }))
-    .filter((x) => x.d !== null && x.d >= 0)
-    .sort((a, b) => (a.d ?? 0) - (b.d ?? 0))
-    .slice(0, 5);
-
   return (
     <div>
-      <header className="mb-8 flex flex-wrap items-center justify-between gap-3">
+      <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Management</h1>
-          <p className="mt-1 text-muted">Tenancies, move-in onboarding and inspections.</p>
+          <p className="mt-1 text-muted">Your portfolio at a glance, tenancies and inspections.</p>
         </div>
         <button
           onClick={openAdd}
@@ -50,6 +43,21 @@ export default function ManagementPage() {
           + New tenancy
         </button>
       </header>
+
+      {/* Tabs */}
+      <div className="mb-8 flex gap-1 border-b border-border">
+        {(["dashboard", "tenants"] as Tab[]).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`-mb-px border-b-2 px-4 py-2.5 text-sm font-medium capitalize transition-colors ${
+              tab === t ? "border-foreground text-foreground" : "border-transparent text-muted hover:text-foreground"
+            }`}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
 
       {error && (
         <div className="mb-6 rounded-xl border border-bad/40 bg-bad-surface px-4 py-3 text-sm text-bad">
@@ -66,36 +74,12 @@ export default function ManagementPage() {
             Go to Properties
           </Link>
         </div>
-      ) : (
+      ) : tab === "dashboard" ? (
         <>
-          <MaintenanceManager />
+          <ManagementDashboard />
 
-          <PropertyCalendar />
-
-          {upcomingInspections.length > 0 && (
-            <section className="mb-8 rounded-2xl border border-border p-5">
-              <h2 className="mb-3 text-lg font-semibold tracking-tight">Upcoming inspections</h2>
-              <ul className="space-y-2">
-                {upcomingInspections.map(({ i, d }) => {
-                  const prop = properties.find((p) => p.id === i.property_id);
-                  return (
-                    <li key={i.id} className="flex items-center justify-between text-sm">
-                      <span>
-                        <span className="capitalize">{i.kind}</span> · {prop?.address || "—"}
-                      </span>
-                      <span className="text-muted">
-                        {fmtDate(i.scheduled_date)} <Badge tone={d! <= 7 ? "warn" : "neutral"}>{d}d</Badge>
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          )}
-
-          {/* Inspection prep checklist — the same list tenants see in their portal,
-              here for the manager to reference while inspecting. */}
-          <section className="mb-8 rounded-2xl border border-border p-5">
+          {/* Inspection prep checklist — the same list tenants see in their portal. */}
+          <section className="mt-8 rounded-2xl border border-border p-5">
             <button
               onClick={() => setShowChecklist((s) => !s)}
               className="flex w-full items-center justify-between text-left"
@@ -114,19 +98,9 @@ export default function ManagementPage() {
               </div>
             )}
           </section>
-
-          {tenancies.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-border p-8 text-center text-muted">
-              No tenancies yet — create one to start onboarding a tenant.
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {tenancies.map((t) => (
-                <TenancyCard key={t.id} tenancy={t} onEdit={openEdit} />
-              ))}
-            </div>
-          )}
         </>
+      ) : (
+        <TenantsTab onEdit={openEdit} />
       )}
 
       <Modal
