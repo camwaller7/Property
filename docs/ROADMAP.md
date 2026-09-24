@@ -123,3 +123,8 @@ of costs are USD vs 100% AUD revenue — annual pre-pay hedges this.
 - [x] Login — password sign-in now persists (proper `<form>` + autocomplete so the
       browser saves/fills credentials); stronger password policy (10+ chars, upper,
       lower, number) on sign-up and reset with an on-screen hint.
+- [x] Inspection prep checklist — comprehensive room-by-room list (ovens, door frames,
+      windows, gardens, etc.) shown in the tenant portal (always available), referenced
+      in the landlord workspace, and linked from an optional tenant inspection reminder email.
+- [x] Pre-tenant condition photos — landlord uploads/stores property condition photos as a
+      per-property historical record (private org-scoped `property-photos` bucket; RLS verified).

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Badge from "@/components/ui/Badge";
 import { Field } from "./Field";
+import PropertyPhotos from "./PropertyPhotos";
 import { usePortfolio } from "@/lib/portfolio";
 import type { Property } from "@/lib/types";
 import {
@@ -176,6 +177,8 @@ export default function PropertyCard({
             </button>
           </div>
           {status && <p className="mt-2 text-sm text-muted">{status}</p>}
+
+          <PropertyPhotos propertyId={p.id} />
         </div>
       )}
     </div>

@@ -8,6 +8,7 @@ import TenancyCard from "@/components/app/TenancyCard";
 import TenancyForm from "@/components/app/TenancyForm";
 import MaintenanceManager from "@/components/app/MaintenanceManager";
 import PropertyCalendar from "@/components/app/PropertyCalendar";
+import InspectionChecklist from "@/components/InspectionChecklist";
 import { usePortfolio } from "@/lib/portfolio";
 import type { Tenancy } from "@/lib/types";
 import { daysUntil, fmtDate } from "@/lib/format";
@@ -16,6 +17,7 @@ export default function ManagementPage() {
   const { properties, tenancies, inspections, loading, error } = usePortfolio();
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Tenancy | undefined>(undefined);
+  const [showChecklist, setShowChecklist] = useState(false);
 
   function openAdd() {
     setEditing(undefined);
@@ -90,6 +92,28 @@ export default function ManagementPage() {
               </ul>
             </section>
           )}
+
+          {/* Inspection prep checklist — the same list tenants see in their portal,
+              here for the manager to reference while inspecting. */}
+          <section className="mb-8 rounded-2xl border border-border p-5">
+            <button
+              onClick={() => setShowChecklist((s) => !s)}
+              className="flex w-full items-center justify-between text-left"
+            >
+              <div>
+                <h2 className="text-lg font-semibold tracking-tight">Inspection prep checklist</h2>
+                <p className="mt-0.5 text-sm text-muted">
+                  What tenants are asked to do before an inspection — also shown in their portal.
+                </p>
+              </div>
+              <span className="text-sm font-medium text-accent">{showChecklist ? "Hide" : "Show"}</span>
+            </button>
+            {showChecklist && (
+              <div className="mt-4 border-t border-border pt-4">
+                <InspectionChecklist interactive={false} />
+              </div>
+            )}
+          </section>
 
           {tenancies.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border p-8 text-center text-muted">

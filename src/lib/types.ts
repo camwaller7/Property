@@ -209,6 +209,16 @@ export interface PropertyCost {
   created_at?: string;
 }
 
+export interface PropertyPhoto {
+  id: string;
+  org_id?: string | null;
+  property_id: string | null;
+  path: string;
+  caption: string | null;
+  taken_on: string | null;
+  created_at?: string;
+}
+
 export type InspectionKind = "entry" | "routine" | "exit";
 export type InspectionStatus = "scheduled" | "completed" | "cancelled";
 
