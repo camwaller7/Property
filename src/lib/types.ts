@@ -61,6 +61,33 @@ export interface Tenancy {
   created_at?: string;
 }
 
+// A per-person document/ID stored against a lease tenant (private bucket).
+export interface TenantDocument {
+  kind: string; // e.g. "id", "payslip", "reference", "other"
+  name: string;
+  path: string;
+  size?: number;
+  uploaded_at?: string;
+}
+
+// One person on a lease. A tenancy (the lease) has one or more of these; the
+// person flagged is_primary has their contact mirrored onto the tenancy row so
+// the portal/applications/email keep working. Emergency contact is per person.
+export interface LeaseTenant {
+  id: string;
+  org_id?: string | null;
+  tenancy_id: string | null;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  is_primary: boolean;
+  emergency_name: string | null;
+  emergency_phone: string | null;
+  emergency_relationship: string | null;
+  documents: TenantDocument[];
+  created_at?: string;
+}
+
 export type OrgRole = "owner" | "admin" | "member";
 
 export interface Organization {

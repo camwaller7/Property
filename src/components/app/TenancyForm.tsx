@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Field, Select, Textarea } from "./Field";
-import { usePortfolio, type TenancyInput } from "@/lib/portfolio";
+import { usePortfolio, type TenancyInput, type LeaseTenantDraft } from "@/lib/portfolio";
 import type { Tenancy } from "@/lib/types";
 import { defaultOnboarding } from "@/lib/sa-rules";
 import { maxBond } from "@/lib/jurisdictions";
@@ -37,6 +37,18 @@ function blank(propertyId: string): TenancyInput {
   };
 }
 
+function blankPerson(isPrimary: boolean): LeaseTenantDraft {
+  return {
+    name: "",
+    email: "",
+    phone: "",
+    is_primary: isPrimary,
+    emergency_name: "",
+    emergency_phone: "",
+    emergency_relationship: "",
+  };
+}
+
 export default function TenancyForm({
   existing,
   defaultPropertyId = "",
@@ -46,15 +58,72 @@ export default function TenancyForm({
   defaultPropertyId?: string;
   onDone: () => void;
 }) {
-  const { properties, saveTenancy } = usePortfolio();
+  const { properties, leaseTenants, saveTenancy } = usePortfolio();
   const [form, setForm] = useState<TenancyInput>(
     existing ? toInput(existing) : blank(defaultPropertyId)
   );
+
+  // Seed the people list from lease_tenants for an existing lease. If a lease
+  // predates this feature (no rows yet) fall back to the single tenant stored
+  // on the tenancy row so nothing is lost on first edit.
+  const [people, setPeople] = useState<LeaseTenantDraft[]>(() => {
+    if (existing) {
+      const rows = leaseTenants
+        .filter((lt) => lt.tenancy_id === existing.id)
+        .map((lt) => ({
+          id: lt.id,
+          name: lt.name ?? "",
+          email: lt.email ?? "",
+          phone: lt.phone ?? "",
+          is_primary: lt.is_primary,
+          emergency_name: lt.emergency_name ?? "",
+          emergency_phone: lt.emergency_phone ?? "",
+          emergency_relationship: lt.emergency_relationship ?? "",
+        }));
+      if (rows.length > 0) {
+        if (!rows.some((r) => r.is_primary)) rows[0].is_primary = true;
+        return rows;
+      }
+      return [
+        {
+          name: existing.tenant_name ?? "",
+          email: existing.tenant_email ?? "",
+          phone: existing.tenant_phone ?? "",
+          is_primary: true,
+          emergency_name: existing.emergency_contact ?? "",
+          emergency_phone: "",
+          emergency_relationship: "",
+        },
+      ];
+    }
+    return [blankPerson(true)];
+  });
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   function set<K extends keyof TenancyInput>(key: K, value: TenancyInput[K]) {
     setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  function setPerson<K extends keyof LeaseTenantDraft>(idx: number, key: K, value: LeaseTenantDraft[K]) {
+    setPeople((ps) => ps.map((p, i) => (i === idx ? { ...p, [key]: value } : p)));
+  }
+
+  function makePrimary(idx: number) {
+    setPeople((ps) => ps.map((p, i) => ({ ...p, is_primary: i === idx })));
+  }
+
+  function addPerson() {
+    setPeople((ps) => [...ps, blankPerson(ps.length === 0)]);
+  }
+
+  function removePerson(idx: number) {
+    setPeople((ps) => {
+      const next = ps.filter((_, i) => i !== idx);
+      if (next.length > 0 && !next.some((p) => p.is_primary)) next[0].is_primary = true;
+      return next;
+    });
   }
 
   // When a property is picked on a new tenancy, prefill rent/lease from it.
@@ -77,13 +146,18 @@ export default function TenancyForm({
       setError("Choose which property this tenancy is for.");
       return;
     }
-    if (!form.tenant_name?.trim()) {
-      setError("Tenant name is required.");
+    const named = people.filter((p) => p.name?.trim());
+    if (named.length === 0) {
+      setError("Add at least one person with a name.");
       return;
     }
+    // Trim to named people and guarantee exactly one primary.
+    const cleaned = named.map((p) => ({ ...p, name: p.name?.trim() ?? "" }));
+    if (!cleaned.some((p) => p.is_primary)) cleaned[0].is_primary = true;
+
     setSaving(true);
     setError("");
-    const res = await saveTenancy(form, existing?.id);
+    const res = await saveTenancy(form, existing?.id, cleaned);
     setSaving(false);
     if (res.error) {
       setError(res.error);
@@ -109,16 +183,13 @@ export default function TenancyForm({
           ))}
         </Select>
 
-        <Field label="Tenant name" value={form.tenant_name ?? ""} onChange={(e) => set("tenant_name", e.target.value)} />
         <Select label="Status" value={form.status} onChange={(e) => set("status", e.target.value as Tenancy["status"])}>
           <option value="upcoming">Upcoming</option>
           <option value="active">Active</option>
           <option value="ended">Ended</option>
         </Select>
-        <Field label="Tenant email" type="email" value={form.tenant_email ?? ""} onChange={(e) => set("tenant_email", e.target.value)} />
-        <Field label="Tenant phone" value={form.tenant_phone ?? ""} onChange={(e) => set("tenant_phone", e.target.value)} />
-
         <Field label="Move-in date" type="date" value={form.move_in_date ?? ""} onChange={(e) => set("move_in_date", e.target.value || null)} />
+
         <Field label="Weekly rent ($)" type="number" value={form.weekly_rent ?? ""} onChange={(e) => set("weekly_rent", e.target.value === "" ? null : Number(e.target.value))} />
         <Select
           label="Rent frequency"
@@ -154,8 +225,62 @@ export default function TenancyForm({
         Bond lodged with Consumer &amp; Business Services (CBS)
       </label>
 
+      {/* People on the lease — one or more. The primary person's contact is
+          used for the portal and email fan-out; everyone gets copied in. */}
+      <div className="mt-6">
+        <div className="mb-2 flex items-center justify-between">
+          <h3 className="text-sm font-semibold tracking-tight">People on this lease</h3>
+          <span className="text-xs text-muted">{people.length} {people.length === 1 ? "person" : "people"}</span>
+        </div>
+        <div className="space-y-4">
+          {people.map((p, idx) => (
+            <div key={p.id ?? `new-${idx}`} className="rounded-xl border border-border p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <label className="flex items-center gap-2 text-xs font-medium">
+                  <input
+                    type="radio"
+                    name="primary-tenant"
+                    checked={p.is_primary}
+                    onChange={() => makePrimary(idx)}
+                  />
+                  Primary contact
+                </label>
+                {people.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removePerson(idx)}
+                    className="text-xs font-medium text-bad hover:underline"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Field label="Full name" value={p.name ?? ""} onChange={(e) => setPerson(idx, "name", e.target.value)} />
+                <Field label="Phone" value={p.phone ?? ""} onChange={(e) => setPerson(idx, "phone", e.target.value)} />
+                <Field label="Email" type="email" className="sm:col-span-2" value={p.email ?? ""} onChange={(e) => setPerson(idx, "email", e.target.value)} />
+              </div>
+              <div className="mt-3 border-t border-border pt-3">
+                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Emergency contact</div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <Field label="Name" value={p.emergency_name ?? ""} onChange={(e) => setPerson(idx, "emergency_name", e.target.value)} />
+                  <Field label="Relationship" value={p.emergency_relationship ?? ""} onChange={(e) => setPerson(idx, "emergency_relationship", e.target.value)} placeholder="e.g. Parent" />
+                  <Field label="Phone" value={p.emergency_phone ?? ""} onChange={(e) => setPerson(idx, "emergency_phone", e.target.value)} />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={addPerson}
+          className="mt-3 rounded-full border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-surface"
+        >
+          + Add another person
+        </button>
+      </div>
+
       <div className="mt-4 grid grid-cols-1 gap-4">
-        <Field label="Emergency contact" value={form.emergency_contact ?? ""} onChange={(e) => set("emergency_contact", e.target.value)} />
         <Textarea label="Notes" value={form.notes ?? ""} onChange={(e) => set("notes", e.target.value)} />
       </div>
 

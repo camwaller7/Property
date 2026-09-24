@@ -11,6 +11,7 @@ const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 export default function PropertyCalendar() {
   const { properties, paymentsByProperty, tenancies, inspections, notices, maintenance } = usePortfolio();
   const [propFilter, setPropFilter] = useState("");
+  const [selected, setSelected] = useState<string | null>(null);
   const [cursor, setCursor] = useState(() => {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1);
@@ -80,10 +81,15 @@ export default function PropertyCalendar() {
           const key = iso(d);
           const dayEvents = byDate[key] || [];
           const isToday = key === todayIso;
+          const isSelected = key === selected;
           return (
-            <div
+            <button
               key={i}
-              className={`min-h-[52px] rounded-lg border p-1 text-left ${isToday ? "border-accent" : "border-border"}`}
+              type="button"
+              onClick={() => setSelected((s) => (s === key ? null : key))}
+              className={`min-h-[52px] rounded-lg border p-1 text-left transition-colors hover:bg-surface ${
+                isSelected ? "border-accent ring-1 ring-accent" : isToday ? "border-accent" : "border-border"
+              }`}
               title={dayEvents.map((e) => e.label).join("\n")}
             >
               <div className="text-[11px] text-muted">{d.getDate()}</div>
@@ -92,10 +98,35 @@ export default function PropertyCalendar() {
                   <span key={j} className={`h-1.5 w-1.5 rounded-full ${dotClass(e.type)}`} />
                 ))}
               </div>
-            </div>
+            </button>
           );
         })}
       </div>
+
+      {/* Selected day — what's due that day */}
+      {selected && (
+        <div className="mt-4 rounded-xl border border-accent/40 bg-accent/5 p-4">
+          <div className="mb-2 flex items-center justify-between">
+            <div className="text-sm font-semibold">{fmtDate(selected)}</div>
+            <button onClick={() => setSelected(null)} className="text-xs text-muted hover:underline">Clear</button>
+          </div>
+          {(byDate[selected] || []).length === 0 ? (
+            <p className="text-sm text-muted">Nothing due on this day.</p>
+          ) : (
+            <ul className="space-y-1.5">
+              {(byDate[selected] || []).map((e, i) => (
+                <li key={i} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                  <span className="flex items-center gap-2">
+                    <Badge tone={EVENT_META[e.type].tone}>{EVENT_META[e.type].label}</Badge>
+                    {e.label}
+                  </span>
+                  {!propFilter && <span className="text-xs text-muted">{propLabel(e.propertyId)}</span>}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       {/* Upcoming agenda */}
       <div className="mt-5">

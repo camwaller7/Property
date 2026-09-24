@@ -13,6 +13,7 @@ import { supabase } from "./supabase";
 import type {
   AppNotification,
   Inspection,
+  LeaseTenant,
   MaintenanceRequest,
   MaintenanceStatus,
   MaintenanceUrgency,
@@ -29,10 +30,23 @@ import type {
   PropertyPhoto,
   Tenancy,
   TenantApplication,
+  TenantDocument,
 } from "./types";
 import { daysUntil, portfolioStats } from "./format";
 
 export type TenancyInput = Omit<Tenancy, "id" | "created_at">;
+// A person on a lease as edited in the tenancy form. `id` present = existing
+// row to update (documents left untouched); absent = a new person to insert.
+export type LeaseTenantDraft = {
+  id?: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  is_primary: boolean;
+  emergency_name: string | null;
+  emergency_phone: string | null;
+  emergency_relationship: string | null;
+};
 export type InspectionInput = Omit<Inspection, "id" | "created_at">;
 export type NoticeInput = Omit<Notice, "id" | "created_at">;
 export type ResourceInput = Omit<PortalResource, "id" | "created_at">;
@@ -43,6 +57,7 @@ interface PortfolioContextValue {
   properties: Property[];
   paymentsByProperty: Record<string, Payment[]>;
   tenancies: Tenancy[];
+  leaseTenants: LeaseTenant[];
   inspections: Inspection[];
   applications: TenantApplication[];
   notices: Notice[];
@@ -84,7 +99,11 @@ interface PortfolioContextValue {
     input: { due_date: string; amount: number; received_date: string | null }
   ) => Promise<{ error?: string }>;
   markPaymentReceived: (paymentId: string, receivedDate: string) => Promise<{ error?: string }>;
-  saveTenancy: (data: TenancyInput, id?: string) => Promise<{ error?: string }>;
+  saveTenancy: (
+    data: TenancyInput,
+    id?: string,
+    people?: LeaseTenantDraft[]
+  ) => Promise<{ error?: string }>;
   setOnboarding: (tenancyId: string, items: OnboardingItem[]) => Promise<{ error?: string }>;
   saveInspection: (data: InspectionInput, id?: string) => Promise<{ error?: string }>;
   createApplication: (tenancyId: string) => Promise<{ token?: string; error?: string }>;
@@ -97,6 +116,8 @@ interface PortfolioContextValue {
   deletePropertyCost: (id: string) => Promise<{ error?: string }>;
   addPropertyPhoto: (data: PropertyPhotoInput) => Promise<{ error?: string }>;
   deletePropertyPhoto: (id: string, path: string) => Promise<{ error?: string }>;
+  addTenantDocument: (leaseTenantId: string, doc: TenantDocument) => Promise<{ error?: string }>;
+  removeTenantDocument: (leaseTenantId: string, doc: TenantDocument) => Promise<{ error?: string }>;
 }
 
 const PortfolioContext = createContext<PortfolioContextValue | null>(null);
@@ -105,6 +126,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   const [properties, setProperties] = useState<Property[]>([]);
   const [paymentsByProperty, setPaymentsByProperty] = useState<Record<string, Payment[]>>({});
   const [tenancies, setTenancies] = useState<Tenancy[]>([]);
+  const [leaseTenants, setLeaseTenants] = useState<LeaseTenant[]>([]);
   const [inspections, setInspections] = useState<Inspection[]>([]);
   const [applications, setApplications] = useState<TenantApplication[]>([]);
   const [notices, setNotices] = useState<Notice[]>([]);
@@ -142,6 +164,12 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
 
     const { data: tens } = await supabase.from("tenancies").select("*").order("created_at");
     setTenancies((tens as Tenancy[]) || []);
+
+    const { data: lt } = await supabase
+      .from("lease_tenants")
+      .select("*")
+      .order("created_at");
+    setLeaseTenants((lt as LeaseTenant[]) || []);
 
     const { data: insp } = await supabase
       .from("inspections")
@@ -290,17 +318,73 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   );
 
   const saveTenancy = useCallback(
-    async (data: TenancyInput, id?: string) => {
+    async (data: TenancyInput, id?: string, people?: LeaseTenantDraft[]) => {
+      // If people are supplied, the primary person is the source of truth for
+      // the tenancy's tenant_name/email/phone (portal + email fan-out read
+      // these) and a summary of their emergency contact keeps the portal's
+      // emergency line populated.
+      let row: TenancyInput = data;
+      if (people && people.length > 0) {
+        const primary = people.find((p) => p.is_primary) ?? people[0];
+        const emergency = [
+          primary.emergency_name,
+          primary.emergency_relationship ? `(${primary.emergency_relationship})` : "",
+          primary.emergency_phone,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .trim();
+        row = {
+          ...data,
+          tenant_name: primary.name,
+          tenant_email: primary.email,
+          tenant_phone: primary.phone,
+          emergency_contact: emergency || null,
+        };
+      }
+
       const res = id
-        ? await supabase.from("tenancies").update(data).eq("id", id)
-        : await supabase.from("tenancies").insert(data);
+        ? await supabase.from("tenancies").update(row).eq("id", id)
+        : await supabase.from("tenancies").insert(row).select("id").single();
       if (res.error) return { error: res.error.message };
+      const tenancyId = id ?? (res.data as { id: string } | null)?.id;
+
+      // Reconcile the people on this lease. Rows carrying an id are updated
+      // (documents left untouched — those are edited in the lease detail view);
+      // rows without an id are inserted; existing rows dropped from the list
+      // are deleted.
+      if (people && tenancyId) {
+        const fields = (p: LeaseTenantDraft) => ({
+          tenancy_id: tenancyId,
+          name: p.name,
+          email: p.email,
+          phone: p.phone,
+          is_primary: p.is_primary,
+          emergency_name: p.emergency_name,
+          emergency_phone: p.emergency_phone,
+          emergency_relationship: p.emergency_relationship,
+        });
+        const keptIds = people.filter((p) => p.id).map((p) => p.id as string);
+        const existing = leaseTenants.filter((lt) => lt.tenancy_id === tenancyId);
+        const toDelete = existing.filter((lt) => !keptIds.includes(lt.id)).map((lt) => lt.id);
+        if (toDelete.length > 0) {
+          const del = await supabase.from("lease_tenants").delete().in("id", toDelete);
+          if (del.error) return { error: del.error.message };
+        }
+        for (const p of people) {
+          const r = p.id
+            ? await supabase.from("lease_tenants").update(fields(p)).eq("id", p.id)
+            : await supabase.from("lease_tenants").insert(fields(p));
+          if (r.error) return { error: r.error.message };
+        }
+      }
+
       // Populate the expected rent schedule for this org right away.
       if (org?.id) await supabase.rpc("generate_rent_schedule", { p_org: org.id });
       await reload();
       return {};
     },
-    [reload, org]
+    [reload, org, leaseTenants]
   );
 
   const setOnboarding = useCallback(
@@ -478,14 +562,29 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     (requestId: string, subject: string, body: string) => {
       const req = maintenance.find((m) => m.id === requestId);
       const ten = tenancies.find((t) => t.id === req?.tenancy_id);
-      if (!ten?.tenant_email) return;
-      fetch("/api/email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to: ten.tenant_email, subject, body, tenancyId: ten.id }),
-      }).catch(() => {});
+      if (!ten) return;
+      // Fan out to everyone on the lease: the primary (tenant_email) plus every
+      // co-tenant's email, deduped. One person raising a matter keeps the whole
+      // household in the loop.
+      const emails = Array.from(
+        new Set(
+          [
+            ten.tenant_email,
+            ...leaseTenants.filter((lt) => lt.tenancy_id === ten.id).map((lt) => lt.email),
+          ]
+            .map((e) => e?.trim())
+            .filter((e): e is string => !!e)
+        )
+      );
+      for (const to of emails) {
+        fetch("/api/email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ to, subject, body, tenancyId: ten.id }),
+        }).catch(() => {});
+      }
     },
-    [maintenance, tenancies]
+    [maintenance, tenancies, leaseTenants]
   );
 
   const updateRequestStatus = useCallback(
@@ -608,6 +707,38 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     [reload]
   );
 
+  const addTenantDocument = useCallback(
+    async (leaseTenantId: string, doc: TenantDocument) => {
+      const lt = leaseTenants.find((x) => x.id === leaseTenantId);
+      const next = [...(lt?.documents ?? []), doc];
+      const res = await supabase
+        .from("lease_tenants")
+        .update({ documents: next })
+        .eq("id", leaseTenantId);
+      if (res.error) return { error: res.error.message };
+      await reload();
+      return {};
+    },
+    [leaseTenants, reload]
+  );
+
+  const removeTenantDocument = useCallback(
+    async (leaseTenantId: string, doc: TenantDocument) => {
+      const lt = leaseTenants.find((x) => x.id === leaseTenantId);
+      const next = (lt?.documents ?? []).filter((d) => d.path !== doc.path);
+      const res = await supabase
+        .from("lease_tenants")
+        .update({ documents: next })
+        .eq("id", leaseTenantId);
+      if (res.error) return { error: res.error.message };
+      // Best-effort remove the stored file too (row is the source of truth).
+      await supabase.storage.from("tenant-documents").remove([doc.path]);
+      await reload();
+      return {};
+    },
+    [leaseTenants, reload]
+  );
+
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   const myRole: OrgRole | null =
@@ -622,6 +753,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     properties,
     paymentsByProperty,
     tenancies,
+    leaseTenants,
     inspections,
     applications,
     notices,
@@ -664,6 +796,8 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     deletePropertyCost,
     addPropertyPhoto,
     deletePropertyPhoto,
+    addTenantDocument,
+    removeTenantDocument,
   };
 
   return <PortfolioContext.Provider value={value}>{children}</PortfolioContext.Provider>;
