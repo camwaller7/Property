@@ -2,11 +2,11 @@ import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { brand } from "@/lib/brand";
 
-// Sends manager emails by POSTing to a Zapier "Catch Hook" webhook, which fires
-// a Zap connected to Gmail / Outlook / SMS / etc. Set ZAPIER_EMAIL_WEBHOOK_URL
-// (server-only env var, NOT NEXT_PUBLIC) in Vercel to the Catch Hook URL.
-// The Zap maps the JSON fields below (to, subject, body, from_name) onto a send
-// action. No email is sent — and a clear 501 is returned — until it's set.
+// Sends manager/tenant emails via Resend (RESEND_SECRET, server-only). The
+// "from" address must be on a Resend-verified domain — defaults to
+// noreply@<brand domain>, override with EMAIL_FROM. Falls back to a Zapier
+// Catch-Hook (ZAPIER_EMAIL_WEBHOOK_URL) if that's all that's configured, so
+// existing setups keep working. Returns a clear 501 until one is set.
 export async function POST(req: Request) {
   let payload: { to?: string; subject?: string; body?: string; tenancyId?: string; fromName?: string };
   try {
@@ -20,38 +20,59 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Recipient and subject are required." }, { status: 400 });
   }
 
+  const resendKey = process.env.RESEND_SECRET;
   const webhook = process.env.ZAPIER_EMAIL_WEBHOOK_URL;
-  if (!webhook) {
+  if (!resendKey && !webhook) {
     return NextResponse.json(
-      {
-        error:
-          "Email isn't configured yet. Add a ZAPIER_EMAIL_WEBHOOK_URL environment variable pointing to your Zapier Catch Hook.",
-      },
+      { error: "Email isn't configured yet. Set RESEND_SECRET (recommended) or ZAPIER_EMAIL_WEBHOOK_URL." },
       { status: 501 }
     );
   }
+
+  const fromAddress = process.env.EMAIL_FROM || `noreply@${brand.domain}`;
+  const from = `${fromName ?? brand.full} <${fromAddress}>`;
+  const text = body ?? "";
 
   let status: "sent" | "failed" = "sent";
   let errorText: string | null = null;
 
   try {
-    const res = await fetch(webhook, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        to,
-        subject,
-        body: body ?? "",
-        from_name: fromName ?? brand.full,
-      }),
-    });
-    if (!res.ok) {
-      status = "failed";
-      errorText = `Zapier webhook returned ${res.status}`;
+    if (resendKey) {
+      // Primary: Resend HTTP API.
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${resendKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ from, to: [to], subject, text }),
+      });
+      if (!res.ok) {
+        status = "failed";
+        let detail = `Resend returned ${res.status}`;
+        try {
+          const j = await res.json();
+          if (j?.message) detail = j.message;
+        } catch {
+          /* non-JSON error body */
+        }
+        errorText = detail;
+      }
+    } else if (webhook) {
+      // Fallback: Zapier Catch-Hook.
+      const res = await fetch(webhook, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to, subject, body: text, from_name: fromName ?? brand.full }),
+      });
+      if (!res.ok) {
+        status = "failed";
+        errorText = `Zapier webhook returned ${res.status}`;
+      }
     }
   } catch (e) {
     status = "failed";
-    errorText = e instanceof Error ? e.message : "Request to Zapier failed";
+    errorText = e instanceof Error ? e.message : "Email request failed";
   }
 
   // Record the send attempt (best-effort) via a SECURITY DEFINER RPC, since this
@@ -61,7 +82,7 @@ export async function POST(req: Request) {
       p_tenancy_id: tenancyId ?? null,
       p_to: to,
       p_subject: subject,
-      p_body: body ?? null,
+      p_body: text || null,
       p_status: status,
       p_error: errorText,
     });

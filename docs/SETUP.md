@@ -112,7 +112,24 @@ first account's data.
 
 ---
 
-## Task 2 — Turn on manager email (Zapier)
+## Task 2 — Turn on manager email
+
+The app sends onboarding links, notices and inspection reminders through
+**Resend** (primary) with an optional Zapier fallback.
+
+### Option A — Resend (recommended, in use)
+1. In **Resend**, verify the domain `corvelleproperty.com` (done) and create an
+   **API key**.
+2. **Vercel → Settings → Environment Variables** → add **`RESEND_SECRET`** = the
+   Resend API key (Production + Preview). *(Optional: `EMAIL_FROM` to override the
+   default sender `noreply@corvelleproperty.com`.)* **Redeploy.**
+3. The sender must be on the **verified** domain — `noreply@corvelleproperty.com`
+   (a gmail/outlook address will be rejected by Resend).
+
+**Done when:** open a tenancy → **Email tenant** → a test send returns "Sent ✓"
+and arrives from `noreply@corvelleproperty.com`.
+
+### Option B — Zapier Catch-Hook (fallback, only if not using Resend)
 
 The app sends email by POSTing to a Zapier **Catch Hook**. You build one Zap.
 
