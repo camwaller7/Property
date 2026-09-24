@@ -31,15 +31,19 @@ export default function Home() {
               href="/app"
               className="rounded-full bg-foreground px-6 py-3 text-sm font-medium text-background transition-opacity hover:opacity-80"
             >
-              Start free
+              Property manager login
             </Link>
-            <a
-              href="#invest"
+            <Link
+              href="/tenant"
               className="rounded-full border border-border px-6 py-3 text-sm font-medium transition-colors hover:bg-surface"
             >
-              See what it does
-            </a>
+              Tenant portal login
+            </Link>
           </div>
+          <p className="mt-4 text-xs text-muted">
+            New here? Managers can <Link href="/app" className="text-accent hover:underline">start free</Link>.
+            Tenants use the sign-up link from their property manager.
+          </p>
         </Reveal>
       </section>
 

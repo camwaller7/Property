@@ -8,14 +8,14 @@ import { brand } from "@/lib/brand";
 // Catch-Hook (ZAPIER_EMAIL_WEBHOOK_URL) if that's all that's configured, so
 // existing setups keep working. Returns a clear 501 until one is set.
 export async function POST(req: Request) {
-  let payload: { to?: string; subject?: string; body?: string; tenancyId?: string; fromName?: string };
+  let payload: { to?: string; subject?: string; body?: string; tenancyId?: string; fromName?: string; replyTo?: string };
   try {
     payload = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const { to, subject, body, tenancyId, fromName } = payload;
+  const { to, subject, body, tenancyId, fromName, replyTo } = payload;
   if (!to || !subject) {
     return NextResponse.json({ error: "Recipient and subject are required." }, { status: 400 });
   }
@@ -31,6 +31,9 @@ export async function POST(req: Request) {
 
   const fromAddress = process.env.EMAIL_FROM || `noreply@${brand.domain}`;
   const from = `${fromName ?? brand.full} <${fromAddress}>`;
+  // A real reply-to (a monitored mailbox) improves deliverability and lets
+  // recipients reply to a human. Falls back to EMAIL_REPLY_TO, then admin@domain.
+  const reply_to = replyTo || process.env.EMAIL_REPLY_TO || `admin@${brand.domain}`;
   const text = body ?? "";
 
   let status: "sent" | "failed" = "sent";
@@ -45,7 +48,7 @@ export async function POST(req: Request) {
           Authorization: `Bearer ${resendKey}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ from, to: [to], subject, text }),
+        body: JSON.stringify({ from, to: [to], subject, text, reply_to }),
       });
       if (!res.ok) {
         status = "failed";

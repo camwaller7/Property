@@ -44,12 +44,20 @@ export default function Nav() {
             </li>
           ))}
         </ul>
-        <Link
-          href="/app"
-          className="rounded-full bg-foreground px-4 py-1.5 text-[13px] font-medium text-background transition-opacity hover:opacity-80"
-        >
-          Open workspace
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/tenant"
+            className="rounded-full border border-border px-4 py-1.5 text-[13px] font-medium transition-colors hover:bg-surface"
+          >
+            Tenant login
+          </Link>
+          <Link
+            href="/app"
+            className="rounded-full bg-foreground px-4 py-1.5 text-[13px] font-medium text-background transition-opacity hover:opacity-80"
+          >
+            Manager login
+          </Link>
+        </div>
       </nav>
     </motion.header>
   );

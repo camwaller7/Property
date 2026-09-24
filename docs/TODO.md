@@ -20,7 +20,9 @@ Goal: run your own properties (starting Eltham Ave, SA) through the whole flow f
 
 ### Testing fixes (raised during live testing) — staged
 - [x] **(build)** **PR A** — **auto-schedule quarterly routine inspections** from lease start (first at +3 months, on the nearest weekday); **reminder markers 1 month / 2 weeks / 3 days** before each, shown in both the management calendar and the tenant portal. **Onboarding notice** telling applicants a contract to sign follows review. **Send documents to tenant**: upload the official/signed contract or the property handbook (PDF) from the lease detail → appears in the tenant portal + emails everyone on the lease.
-- [ ] **(build + you)** **PR B** — **automatic reminder sending** via a Vercel Cron (daily) hitting a protected endpoint (needs a `CRON_SECRET` you set in Vercel). Plus **email deliverability** so mail lands in the inbox not junk: verify `corvelleproperty.com` in Resend and add the **SPF / DKIM / DMARC** DNS records at GoDaddy (I'll give exact records; you paste them).
+- [x] **(build)** **PR C** — **tenant accounts + dual login**. Landing page now has **Property manager login** (`/app`) and **Tenant login** (`/tenant`). The portal link a manager sends is now a **create-account** page (`/tenant/claim/<token>`); the signup is linked to the tenancy (role-aware `handle_new_user`, new `tenant_portal_users` table) so tenants sign in from the landing page and land in their portal. Also added `Reply-To` to app email.
+- [~] **(you)** **Email deliverability** (mail landing in junk): verify `corvelleproperty.com` in Resend + add **SPF / DKIM / DMARC** DNS at GoDaddy — full steps in `docs/EMAIL-DELIVERABILITY.md`.
+- [ ] **(build + you)** **PR B (cron)** — **automatic reminder sending** via a Vercel Cron (daily) hitting a protected endpoint (needs a `CRON_SECRET` you set in Vercel). Reminder markers + portal display already ship in PR A; this makes them send automatically.
 
 ### Auth / sign-in (Section C tail)
 - [~] **(you)** Fix Resend SMTP **sender → `noreply@corvelleproperty.com`** (gmail can't be a verified sender) so confirmation emails send.
