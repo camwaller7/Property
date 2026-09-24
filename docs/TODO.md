@@ -4,7 +4,7 @@ Two living lists, kept current as we work. `docs/ROADMAP.md` holds the full hist
 
 Legend: `[ ]` open · `[~]` in progress / waiting · `[x]` done · **(you)** dashboard/browser · **(build)** code (Claude) · **(test)** hands-on check
 
-_Last updated: 2026-09-23_
+_Last updated: 2026-09-24_
 
 ---
 
@@ -12,8 +12,11 @@ _Last updated: 2026-09-23_
 Goal: run your own properties (starting Eltham Ave, SA) through the whole flow for a month to shake out imperfections. Online billing/subscriptions are **not** required for this — you can mark rent paid manually — so Stripe subscriptions live on the pre-public list.
 
 ### Ship what's built
-- [~] **(you)** Merge **PR #3 — Cost tracking** into `main`.
-- [~] **(build/you)** After #3: I sync `main` into **PR #4 — Inspection checklist + condition photos**, then you merge it.
+- [x] **PR #3 — Cost tracking**, **PR #4 — Inspection checklist + condition photos**, **PR #5 — rolling TODO** and **PR #6 — Resend email** all merged to `main`.
+
+### Management rework (raised while adding a real tenant) — staged
+- [x] **(build)** **PR 1** — richer per-person **emergency contact** (name, relationship, phone) + **multiple people under one lease**. New org-scoped `lease_tenants` table; the primary person's contact mirrors onto the tenancy row so the portal/applications/emails keep working; manager emails **fan out to everyone on the lease**; private `tenant-documents` bucket provisioned for per-person IDs.
+- [ ] **(build)** **PR 2** — Management **Dashboard** tab: clickable event calendar (click a day → what's due) + info tiles (urgent outstanding items, maintenance requests, inspections due, lease expiries within the month). Separate **Tenants** tab with at-a-glance critical flags (rent due, maintenance), opening a full **lease detail view** (per-person ID/documents, contact, contract, inspections, reports, portal onboarding link, move-in + inspection checklists, inspection photos).
 
 ### Auth / sign-in (Section C tail)
 - [~] **(you)** Fix Resend SMTP **sender → `noreply@corvelleproperty.com`** (gmail can't be a verified sender) so confirmation emails send.
