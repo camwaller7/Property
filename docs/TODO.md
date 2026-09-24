@@ -4,7 +4,7 @@ Two living lists, kept current as we work. `docs/ROADMAP.md` holds the full hist
 
 Legend: `[ ]` open · `[~]` in progress / waiting · `[x]` done · **(you)** dashboard/browser · **(build)** code (Claude) · **(test)** hands-on check
 
-_Last updated: 2026-09-23_
+_Last updated: 2026-09-24_
 
 ---
 
@@ -12,15 +12,17 @@ _Last updated: 2026-09-23_
 Goal: run your own properties (starting Eltham Ave, SA) through the whole flow for a month to shake out imperfections. Online billing/subscriptions are **not** required for this — you can mark rent paid manually — so Stripe subscriptions live on the pre-public list.
 
 ### Ship what's built
-- [~] **(you)** Merge **PR #3 — Cost tracking** into `main`.
-- [~] **(build/you)** After #3: I sync `main` into **PR #4 — Inspection checklist + condition photos**, then you merge it.
+- [x] **PR #3 — Cost tracking** merged to `main`.
+- [x] **PR #4 — Inspection checklist + condition photos** merged (synced past #3, conflicts resolved).
+- [x] **PR #6 — Resend email** and **PR #5 — rolling TODO** merged. All four feature PRs are now live on `main`.
 
 ### Auth / sign-in (Section C tail)
-- [~] **(you)** Fix Resend SMTP **sender → `noreply@corvelleproperty.com`** (gmail can't be a verified sender) so confirmation emails send.
+- [~] **(you)** In **Supabase Auth → SMTP** (the sign-up confirmation/reset path, separate from the app's Resend email), set **sender → `noreply@corvelleproperty.com`** (gmail can't be a verified sender) so confirmation emails send. *(Or leave Confirm-email OFF for the test and enable it before public.)*
 - [ ] **(test)** Do a real sign-up on the live domain → tell me the email → **I verify the new isolated org** (live cross-org isolation check) to close Section C end-to-end.
 
 ### Manager ↔ tenant email (core to real use)
-- [ ] **(you/build)** Turn on outbound email so the app can send onboarding links, notices, and **inspection reminders**. Decide: **Zapier Catch-Hook** (`ZAPIER_EMAIL_WEBHOOK_URL`) **or** switch app email to **Resend** (already verified). *If Resend, I do the (build) to point `/api/email` at Resend.*
+- [x] **(build)** App email switched to **Resend** (`/api/email`), merged. Onboarding links, notices, inspection reminders send via `RESEND_SECRET` from `noreply@corvelleproperty.com`.
+- [~] **(you)** Set `RESEND_SECRET` in Vercel (Prod + Preview) — done — then **redeploy** so it's active in production; send one test "Email tenant" to confirm delivery.
 
 ### Prove the whole loop on a real property
 - [ ] **(test)** End-to-end walkthrough on Eltham Ave: add property → create tenancy → send onboarding link → tenant submits → generate agreement/handbook → enable portal → log a maintenance matter (thread both sides) → schedule inspection + tenant reminder → log costs + receipt → upload condition photos → record rent + mark paid.
