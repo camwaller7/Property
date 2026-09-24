@@ -7,8 +7,9 @@ import { brand } from "@/lib/brand";
 import Badge from "@/components/ui/Badge";
 import InspectionChecklist from "@/components/InspectionChecklist";
 import { Field, Select, Textarea } from "@/components/app/Field";
-import { fmtDate, fmtMoney, nextWeekdayDate } from "@/lib/format";
-import type { MaintenanceRequest, Notice, Payment, PortalResource, Tenancy } from "@/lib/types";
+import { fmtDate, fmtMoney, nextWeekdayDate, daysUntil } from "@/lib/format";
+import { REMINDER_DAYS } from "@/lib/inspections";
+import type { Inspection, MaintenanceRequest, Notice, Payment, PortalResource, Tenancy } from "@/lib/types";
 
 const RESOURCE_BUCKET = "tenant-resources";
 const PHOTO_BUCKET = "maintenance-photos";
@@ -32,6 +33,7 @@ interface Payload {
   notices: Notice[];
   resources: PortalResource[];
   payments: Payment[];
+  inspections: Inspection[];
   requests: MaintenanceRequest[];
 }
 
@@ -133,6 +135,10 @@ export default function PortalPage() {
   }
 
   const { tenancy, property, contact, notices, resources, payments, requests } = data;
+  const upcomingInspections = (data.inspections || [])
+    .map((i) => ({ i, d: daysUntil(i.scheduled_date) }))
+    .filter((x) => x.d !== null && x.d >= 0)
+    .sort((a, b) => (a.d ?? 0) - (b.d ?? 0));
 
   const outstanding = payments
     .filter((p) => p.status !== "paid" && !p.received_date && p.due_date)
@@ -218,6 +224,34 @@ export default function PortalPage() {
           <Stat label="Bond lodged" value={tenancy.bond_lodged ? "Yes" : "Not yet"} />
         </div>
       </Card>
+
+      {/* Upcoming inspections */}
+      {upcomingInspections.length > 0 && (
+        <Card title="Upcoming inspections">
+          <ul className="space-y-3">
+            {upcomingInspections.map(({ i, d }) => {
+              const nextReminder = REMINDER_DAYS.filter((r) => (d ?? 0) >= r).sort((a, b) => a - b)[0];
+              return (
+                <li key={i.id} className="rounded-xl border border-border p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-medium capitalize">{i.kind} inspection</span>
+                    <span className="text-sm text-muted">
+                      {fmtDate(i.scheduled_date)}
+                      {i.scheduled_time ? ` at ${i.scheduled_time}` : ""} <Badge tone={d! <= 14 ? "warn" : "neutral"}>{d}d</Badge>
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-muted">
+                    {nextReminder
+                      ? `We'll send a reminder ${nextReminder} days before — and again closer to the day.`
+                      : "Reminders have been sent — see you soon."}{" "}
+                    There&apos;s a prep checklist below.
+                  </p>
+                </li>
+              );
+            })}
+          </ul>
+        </Card>
+      )}
 
       {/* Maintenance */}
       <MaintenanceCard

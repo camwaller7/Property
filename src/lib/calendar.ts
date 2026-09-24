@@ -3,8 +3,9 @@
 
 import type { Inspection, MaintenanceRequest, Notice, Payment, Property, Tenancy } from "./types";
 import { fmtMoney } from "./format";
+import { REMINDER_DAYS, minusDays } from "./inspections";
 
-export type CalEventType = "rent" | "inspection" | "lease" | "movein" | "notice" | "task";
+export type CalEventType = "rent" | "inspection" | "lease" | "movein" | "notice" | "task" | "reminder";
 
 export interface CalEvent {
   date: string; // YYYY-MM-DD
@@ -20,6 +21,7 @@ export const EVENT_META: Record<CalEventType, { label: string; tone: "good" | "b
   movein: { label: "Move-in", tone: "good" },
   notice: { label: "Notice", tone: "warn" },
   task: { label: "Task", tone: "warn" },
+  reminder: { label: "Reminder", tone: "warn" },
 };
 
 export function collectEvents(args: {
@@ -41,15 +43,25 @@ export function collectEvents(args: {
     }
   }
 
-  // Scheduled inspections.
+  // Scheduled inspections, plus reminder markers a month / fortnight / few days
+  // ahead (these mirror the automatic reminder emails).
   for (const i of args.inspections) {
     if (i.status === "scheduled" && i.scheduled_date) {
+      const kindLabel = i.kind[0].toUpperCase() + i.kind.slice(1);
       events.push({
         date: i.scheduled_date,
         type: "inspection",
-        label: `${i.kind[0].toUpperCase() + i.kind.slice(1)} inspection${i.scheduled_time ? ` ${i.scheduled_time}` : ""}`,
+        label: `${kindLabel} inspection${i.scheduled_time ? ` ${i.scheduled_time}` : ""}`,
         propertyId: i.property_id,
       });
+      for (const days of REMINDER_DAYS) {
+        events.push({
+          date: minusDays(i.scheduled_date, days),
+          type: "reminder",
+          label: `${kindLabel} inspection reminder — ${days} days`,
+          propertyId: i.property_id,
+        });
+      }
     }
   }
 

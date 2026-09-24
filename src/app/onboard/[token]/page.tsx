@@ -72,7 +72,8 @@ export default function OnboardPage() {
       <Centered>
         <h1 className="text-2xl font-semibold tracking-tight">Application received ✓</h1>
         <p className="mt-2 text-muted">
-          Thanks — your application has been submitted. Your property manager will be in touch.
+          Thanks — your application has been submitted. Once your information has been reviewed and
+          cleared, your property manager will send you a tenancy contract to review and sign.
         </p>
       </Centered>
     );
@@ -185,6 +186,13 @@ function OnboardForm({
           Please complete every field and upload the required documents. You can&apos;t submit until
           everything&apos;s filled in.
         </p>
+        <div className="mt-4 rounded-xl border border-accent/40 bg-accent/5 p-4 text-sm">
+          <p className="font-medium">What happens next</p>
+          <p className="mt-1 text-muted">
+            Once your information has been reviewed and cleared, you&apos;ll receive a tenancy contract to
+            review and sign. Nothing is final until you&apos;ve seen and signed that contract.
+          </p>
+        </div>
       </header>
 
       {showErrors && problems.length > 0 && (

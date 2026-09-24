@@ -33,6 +33,7 @@ import type {
   TenantDocument,
 } from "./types";
 import { daysUntil, portfolioStats } from "./format";
+import { quarterlyInspectionDates } from "./inspections";
 
 export type TenancyInput = Omit<Tenancy, "id" | "created_at">;
 // A person on a lease as edited in the tenancy form. `id` present = existing
@@ -376,6 +377,31 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
             ? await supabase.from("lease_tenants").update(fields(p)).eq("id", p.id)
             : await supabase.from("lease_tenants").insert(fields(p));
           if (r.error) return { error: r.error.message };
+        }
+      }
+
+      // Auto-schedule quarterly routine inspections from the lease start (first
+      // one 3 months in, on the nearest weekday). Idempotent: only dates that
+      // don't already have an inspection are added, so cancelled/edited ones are
+      // never recreated.
+      if (tenancyId && row.property_id && row.lease_start) {
+        const dates = quarterlyInspectionDates(row.lease_start, row.lease_end);
+        if (dates.length > 0) {
+          const { data: existing } = await supabase
+            .from("inspections")
+            .select("scheduled_date")
+            .eq("tenancy_id", tenancyId);
+          const have = new Set((existing ?? []).map((e: { scheduled_date: string | null }) => e.scheduled_date));
+          const toAdd = dates
+            .filter((d) => !have.has(d))
+            .map((d) => ({
+              property_id: row.property_id,
+              tenancy_id: tenancyId,
+              kind: "routine",
+              scheduled_date: d,
+              status: "scheduled",
+            }));
+          if (toAdd.length > 0) await supabase.from("inspections").insert(toAdd);
         }
       }
 
