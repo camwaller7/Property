@@ -25,6 +25,10 @@ Goal: run your own properties (starting Eltham Ave, SA) through the whole flow f
 - [x] **(build)** **PR B (cron)** — **automatic reminder sending**: `vercel.json` runs `/api/cron/reminders` daily (21:00 UTC ≈ 7:30am Adelaide); it emails everyone on the lease 30 / 14 / 3 days before each scheduled inspection, de-duped via `inspection_reminders_sent`.
 - [ ] **(you)** Set **`CRON_SECRET`** (any long random string) and **`SUPABASE_SERVICE_ROLE_KEY`** in Vercel env so the reminder cron can run and send. (Vercel Cron sends the `CRON_SECRET` automatically; the endpoint 401s without it.)
 
+### Recurring bills & calendar
+- [x] **(build)** **Council rates / water / other recurring bills** per property (amount, cycle, next-due, payer) on the Cost tracking page — auto-projected into the Management **calendar** and a new **"Rates & bills due (30 days)"** dashboard tile. Council rates are landlord-only; **water/tenant-recoverable bills** have a **"Send to tenant"** action that posts a portal notice. Landlord-only data — never shown in the tenant portal.
+- [x] **(build)** Calendar list below the grid is now a **2-week snapshot** ("Next 2 weeks") instead of a flat list.
+
 ### Auth / sign-in (Section C tail)
 - [~] **(you)** Fix Resend SMTP **sender → `noreply@corvelleproperty.com`** (gmail can't be a verified sender) so confirmation emails send.
 - [ ] **(test)** Do a real sign-up on the live domain → tell me the email → **I verify the new isolated org** (live cross-org isolation check) to close Section C end-to-end.

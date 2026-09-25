@@ -27,6 +27,7 @@ import type {
   Property,
   PropertyCost,
   PropertyInput,
+  PropertyBill,
   PropertyPhoto,
   Tenancy,
   TenantApplication,
@@ -53,6 +54,7 @@ export type NoticeInput = Omit<Notice, "id" | "created_at">;
 export type ResourceInput = Omit<PortalResource, "id" | "created_at">;
 export type PropertyCostInput = Omit<PropertyCost, "id" | "org_id" | "created_at">;
 export type PropertyPhotoInput = Omit<PropertyPhoto, "id" | "org_id" | "created_at">;
+export type PropertyBillInput = Omit<PropertyBill, "id" | "org_id" | "created_at">;
 
 interface PortfolioContextValue {
   properties: Property[];
@@ -66,6 +68,7 @@ interface PortfolioContextValue {
   maintenance: MaintenanceRequest[];
   propertyCosts: PropertyCost[];
   propertyPhotos: PropertyPhoto[];
+  propertyBills: PropertyBill[];
   notifications: AppNotification[];
   unreadCount: number;
   org: Organization | null;
@@ -117,6 +120,8 @@ interface PortfolioContextValue {
   deletePropertyCost: (id: string) => Promise<{ error?: string }>;
   addPropertyPhoto: (data: PropertyPhotoInput) => Promise<{ error?: string }>;
   deletePropertyPhoto: (id: string, path: string) => Promise<{ error?: string }>;
+  addPropertyBill: (data: PropertyBillInput) => Promise<{ error?: string }>;
+  deletePropertyBill: (id: string) => Promise<{ error?: string }>;
   addTenantDocument: (leaseTenantId: string, doc: TenantDocument) => Promise<{ error?: string }>;
   removeTenantDocument: (leaseTenantId: string, doc: TenantDocument) => Promise<{ error?: string }>;
 }
@@ -135,6 +140,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   const [maintenance, setMaintenance] = useState<MaintenanceRequest[]>([]);
   const [propertyCosts, setPropertyCosts] = useState<PropertyCost[]>([]);
   const [propertyPhotos, setPropertyPhotos] = useState<PropertyPhoto[]>([]);
+  const [propertyBills, setPropertyBills] = useState<PropertyBill[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [org, setOrg] = useState<Organization | null>(null);
   const [members, setMembers] = useState<OrgMember[]>([]);
@@ -213,6 +219,12 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       .select("*")
       .order("created_at", { ascending: false });
     setPropertyPhotos((photos as PropertyPhoto[]) || []);
+
+    const { data: bills } = await supabase
+      .from("property_bills")
+      .select("*")
+      .order("next_due");
+    setPropertyBills((bills as PropertyBill[]) || []);
 
     const { data: notifs } = await supabase
       .from("notifications")
@@ -733,6 +745,26 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     [reload]
   );
 
+  const addPropertyBill = useCallback(
+    async (data: PropertyBillInput) => {
+      const res = await supabase.from("property_bills").insert(data);
+      if (res.error) return { error: res.error.message };
+      await reload();
+      return {};
+    },
+    [reload]
+  );
+
+  const deletePropertyBill = useCallback(
+    async (id: string) => {
+      const res = await supabase.from("property_bills").delete().eq("id", id);
+      if (res.error) return { error: res.error.message };
+      await reload();
+      return {};
+    },
+    [reload]
+  );
+
   const addTenantDocument = useCallback(
     async (leaseTenantId: string, doc: TenantDocument) => {
       const lt = leaseTenants.find((x) => x.id === leaseTenantId);
@@ -787,6 +819,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     maintenance,
     propertyCosts,
     propertyPhotos,
+    propertyBills,
     notifications,
     unreadCount,
     org,
@@ -824,6 +857,8 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     deletePropertyPhoto,
     addTenantDocument,
     removeTenantDocument,
+    addPropertyBill,
+    deletePropertyBill,
   };
 
   return <PortfolioContext.Provider value={value}>{children}</PortfolioContext.Provider>;

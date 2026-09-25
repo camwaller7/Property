@@ -9,7 +9,7 @@ import { collectEvents, EVENT_META, iso, type CalEvent } from "@/lib/calendar";
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 export default function PropertyCalendar() {
-  const { properties, paymentsByProperty, tenancies, inspections, notices, maintenance } = usePortfolio();
+  const { properties, paymentsByProperty, tenancies, inspections, notices, maintenance, propertyBills } = usePortfolio();
   const [propFilter, setPropFilter] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [cursor, setCursor] = useState(() => {
@@ -18,8 +18,8 @@ export default function PropertyCalendar() {
   });
 
   const events = useMemo(
-    () => collectEvents({ properties, paymentsByProperty, tenancies, inspections, notices, maintenance }),
-    [properties, paymentsByProperty, tenancies, inspections, notices, maintenance]
+    () => collectEvents({ properties, paymentsByProperty, tenancies, inspections, notices, maintenance, bills: propertyBills }),
+    [properties, paymentsByProperty, tenancies, inspections, notices, maintenance, propertyBills]
   );
   const filtered = propFilter ? events.filter((e) => e.propertyId === propFilter) : events;
 
@@ -44,7 +44,11 @@ export default function PropertyCalendar() {
   const todayIso = iso(new Date());
   const monthLabel = cursor.toLocaleDateString(undefined, { month: "long", year: "numeric" });
 
-  const upcoming = filtered.filter((e) => e.date >= todayIso).slice(0, 10);
+  // Two-week snapshot: everything due from today through the next 14 days.
+  const in14 = new Date();
+  in14.setDate(in14.getDate() + 14);
+  const twoWeeks = iso(in14);
+  const upcoming = filtered.filter((e) => e.date >= todayIso && e.date <= twoWeeks);
 
   function propLabel(id: string | null) {
     return properties.find((p) => p.id === id)?.address || "—";
@@ -128,11 +132,11 @@ export default function PropertyCalendar() {
         </div>
       )}
 
-      {/* Upcoming agenda */}
+      {/* Next two weeks */}
       <div className="mt-5">
-        <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Upcoming</div>
+        <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Next 2 weeks</div>
         {upcoming.length === 0 ? (
-          <p className="text-sm text-muted">Nothing scheduled.</p>
+          <p className="text-sm text-muted">Nothing due in the next two weeks.</p>
         ) : (
           <ul className="space-y-1.5">
             {upcoming.map((e, i) => (
@@ -157,6 +161,7 @@ function dotClass(type: string): string {
     case "rent": return "bg-warn";
     case "notice": return "bg-warn";
     case "reminder": return "bg-warn";
+    case "bill": return "bg-warn";
     case "task": return "bg-bad";
     case "movein": return "bg-good";
     default: return "bg-accent";

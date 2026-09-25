@@ -6,6 +6,7 @@ import PropertyCalendar from "./PropertyCalendar";
 import MaintenanceManager from "./MaintenanceManager";
 import { usePortfolio } from "@/lib/portfolio";
 import { daysUntil, fmtDate, fmtMoney } from "@/lib/format";
+import { BILL_KIND_LABEL, projectBillDates } from "@/lib/bills";
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
@@ -14,7 +15,7 @@ function todayIso() {
 // The Management dashboard: the event calendar up top, then at-a-glance tiles
 // summarising what needs attention across the whole portfolio.
 export default function ManagementDashboard() {
-  const { properties, tenancies, inspections, maintenance, paymentsByProperty } = usePortfolio();
+  const { properties, tenancies, inspections, maintenance, paymentsByProperty, propertyBills } = usePortfolio();
 
   const propLabel = (id: string | null) => properties.find((p) => p.id === id)?.address || "—";
 
@@ -48,8 +49,18 @@ export default function ManagementDashboard() {
       .filter((x) => x.d !== null && x.d >= 0 && x.d <= 30)
       .sort((a, b) => (a.d ?? 0) - (b.d ?? 0));
 
-    return { overdueRent, openMaintenance, urgent, inspectionsDue, leaseExpiries };
-  }, [tenancies, inspections, maintenance, paymentsByProperty]);
+    // Recurring bills (rates/water/…) with an occurrence in the next 30 days.
+    const billsDue = propertyBills
+      .filter((b) => b.active)
+      .flatMap((b) =>
+        projectBillDates(b.next_due, b.frequency, 2)
+          .map((date) => ({ b, date, d: daysUntil(date) }))
+          .filter((x) => x.d !== null && x.d >= 0 && x.d <= 30)
+      )
+      .sort((a, b) => (a.d ?? 0) - (b.d ?? 0));
+
+    return { overdueRent, openMaintenance, urgent, inspectionsDue, leaseExpiries, billsDue };
+  }, [tenancies, inspections, maintenance, paymentsByProperty, propertyBills]);
 
   const urgentCount = data.urgent.length + data.overdueRent.length;
 
@@ -122,6 +133,24 @@ export default function ManagementDashboard() {
                   tone={d! <= 14 ? "warn" : "neutral"}
                   label={t.tenant_name || "(unnamed tenant)"}
                   meta={`${propLabel(t.property_id)} · ends ${fmtDate(t.lease_end)} (${d}d)`}
+                />
+              ))}
+            </ul>
+          )}
+        </Tile>
+
+        {/* Rates & bills due */}
+        <Tile title="Rates & bills due (30 days)" count={data.billsDue.length} tone={data.billsDue.length > 0 ? "warn" : "good"}>
+          {data.billsDue.length === 0 ? (
+            <Empty>No bills due this month.</Empty>
+          ) : (
+            <ul className="space-y-1.5">
+              {data.billsDue.map(({ b, date, d }, i) => (
+                <Row
+                  key={`${b.id}-${i}`}
+                  tone={d! <= 7 ? "warn" : "neutral"}
+                  label={`${b.label || BILL_KIND_LABEL[b.kind] || "Bill"}${b.amount != null ? ` · ${fmtMoney(b.amount)}` : ""}`}
+                  meta={`${propLabel(b.property_id)} · ${fmtDate(date)}${b.payer === "tenant" ? " · recover from tenant" : ""}`}
                 />
               ))}
             </ul>
