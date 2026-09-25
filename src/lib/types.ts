@@ -267,6 +267,26 @@ export interface PropertyPhoto {
   created_at?: string;
 }
 
+// Recurring property outgoings (council rates, water, insurance…). Landlord
+// data; `payer` marks whether it's landlord-paid or recoverable from the tenant.
+export type BillKind = "council_rates" | "water" | "insurance" | "strata" | "land_tax" | "other";
+export type BillFrequency = "quarterly" | "annual" | "monthly";
+
+export interface PropertyBill {
+  id: string;
+  org_id?: string | null;
+  property_id: string | null;
+  kind: BillKind | string;
+  label: string | null;
+  amount: number | null;
+  frequency: BillFrequency | string;
+  next_due: string | null;
+  payer: "landlord" | "tenant" | string;
+  notes: string | null;
+  active: boolean;
+  created_at?: string;
+}
+
 export type InspectionKind = "entry" | "routine" | "exit";
 export type InspectionStatus = "scheduled" | "completed" | "cancelled";
 

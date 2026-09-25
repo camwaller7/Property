@@ -30,6 +30,10 @@ Goal: run your own properties (starting Eltham Ave, SA) through the whole flow f
 - [ ] **(build)** **PR 2** — **Transfer a tenant** to another of your properties: one action that moves them + their people/documents into a new tenancy and ends the old one, no re-application.
 - [ ] **(build)** **PR 3** — **Portable rental history**: the tenant's account shows their history across managers; tenant-consented **share to a new PM** (read-only reference), crossing org isolation only with consent.
 
+### Recurring bills & calendar
+- [x] **(build)** **Council rates / water / other recurring bills** per property (amount, cycle, next-due, payer) on the Cost tracking page — auto-projected into the Management **calendar** and a new **"Rates & bills due (30 days)"** dashboard tile. Council rates are landlord-only; **water/tenant-recoverable bills** have a **"Send to tenant"** action that posts a portal notice. Landlord-only data — never shown in the tenant portal.
+- [x] **(build)** Calendar list below the grid is now a **2-week snapshot** ("Next 2 weeks") instead of a flat list.
+
 ### Auth / sign-in (Section C tail)
 - [x] **(build)** Tenant claim link handles an **existing account**: if the email already has an account (or a returning tenant already has one), they can **sign in on the claim link to link** it to the tenancy (`claim_tenancy` RPC), instead of the sign-up dead-ending on "already registered".
 - [~] **(you)** Fix Resend SMTP **sender → `noreply@corvelleproperty.com`** (gmail can't be a verified sender) so confirmation emails send.

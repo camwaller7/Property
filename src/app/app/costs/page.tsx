@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { usePortfolio } from "@/lib/portfolio";
 import { fmtMoney, fmtDate } from "@/lib/format";
 import { Field, Select } from "@/components/app/Field";
+import PropertyBills from "@/components/app/PropertyBills";
 import type { PropertyCost, CostCategory } from "@/lib/types";
 
 const RECEIPT_BUCKET = "renovation-receipts"; // internal bucket id; stores cost receipts
@@ -116,6 +117,8 @@ export default function CostsPage() {
         </div>
       ) : (
         <>
+          <PropertyBills />
+
           {adding && <CostForm onDone={() => setAdding(false)} />}
 
           {/* Filters */}

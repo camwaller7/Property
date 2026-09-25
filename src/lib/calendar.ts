@@ -1,11 +1,12 @@
 // Aggregates upcoming property events from the workspace data into a single
 // calendar feed. Pure function so it's easy to reason about and reuse.
 
-import type { Inspection, MaintenanceRequest, Notice, Payment, Property, Tenancy } from "./types";
+import type { Inspection, MaintenanceRequest, Notice, Payment, Property, PropertyBill, Tenancy } from "./types";
 import { fmtMoney } from "./format";
 import { REMINDER_DAYS, minusDays } from "./inspections";
+import { BILL_KIND_LABEL, projectBillDates } from "./bills";
 
-export type CalEventType = "rent" | "inspection" | "lease" | "movein" | "notice" | "task" | "reminder";
+export type CalEventType = "rent" | "inspection" | "lease" | "movein" | "notice" | "task" | "reminder" | "bill";
 
 export interface CalEvent {
   date: string; // YYYY-MM-DD
@@ -22,6 +23,7 @@ export const EVENT_META: Record<CalEventType, { label: string; tone: "good" | "b
   notice: { label: "Notice", tone: "warn" },
   task: { label: "Task", tone: "warn" },
   reminder: { label: "Reminder", tone: "warn" },
+  bill: { label: "Bill", tone: "warn" },
 };
 
 export function collectEvents(args: {
@@ -31,6 +33,7 @@ export function collectEvents(args: {
   inspections: Inspection[];
   notices: Notice[];
   maintenance: MaintenanceRequest[];
+  bills?: PropertyBill[];
 }): CalEvent[] {
   const events: CalEvent[] = [];
 
@@ -81,6 +84,17 @@ export function collectEvents(args: {
   for (const m of args.maintenance) {
     if (m.due_date && m.status !== "resolved" && m.status !== "cancelled") {
       events.push({ date: m.due_date, type: "task", label: m.title, propertyId: m.property_id });
+    }
+  }
+
+  // Recurring property bills (council rates, water…) projected forward.
+  for (const b of args.bills ?? []) {
+    if (!b.active) continue;
+    const name = b.label || BILL_KIND_LABEL[b.kind] || "Bill";
+    const amount = b.amount != null ? ` ${fmtMoney(b.amount)}` : "";
+    const who = b.payer === "tenant" ? " (recover from tenant)" : "";
+    for (const date of projectBillDates(b.next_due, b.frequency)) {
+      events.push({ date, type: "bill", label: `${name}${amount} due${who}`, propertyId: b.property_id });
     }
   }
 
