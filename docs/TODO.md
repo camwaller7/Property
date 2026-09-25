@@ -26,6 +26,7 @@ Goal: run your own properties (starting Eltham Ave, SA) through the whole flow f
 - [ ] **(you)** Set **`CRON_SECRET`** (any long random string) and **`SUPABASE_SERVICE_ROLE_KEY`** in Vercel env so the reminder cron can run and send. (Vercel Cron sends the `CRON_SECRET` automatically; the endpoint 401s without it.)
 
 ### Auth / sign-in (Section C tail)
+- [x] **(build)** Tenant claim link handles an **existing account**: if the email already has an account (or a returning tenant already has one), they can **sign in on the claim link to link** it to the tenancy (`claim_tenancy` RPC), instead of the sign-up dead-ending on "already registered".
 - [~] **(you)** Fix Resend SMTP **sender → `noreply@corvelleproperty.com`** (gmail can't be a verified sender) so confirmation emails send.
 - [ ] **(test)** Do a real sign-up on the live domain → tell me the email → **I verify the new isolated org** (live cross-org isolation check) to close Section C end-to-end.
 
