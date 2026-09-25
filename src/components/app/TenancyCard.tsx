@@ -35,8 +35,17 @@ export default function TenancyCard({
   tenancy: Tenancy;
   onEdit: (t: Tenancy) => void;
 }) {
-  const { properties, inspections, setOnboarding, saveInspection, org } = usePortfolio();
+  const { properties, inspections, setOnboarding, saveInspection, endTenancy, org } = usePortfolio();
   const [open, setOpen] = useState(true);
+  const [ending, setEnding] = useState(false);
+
+  async function handleEnd() {
+    if (!globalThis.confirm?.("End this tenancy? The tenant's portal will switch to a past-tenancy record and live details will be hidden. Your records are kept.")) return;
+    const note = globalThis.prompt?.("Optional reference note for their rental history (conduct, payment record, etc.) — leave blank to skip:") ?? "";
+    setEnding(true);
+    await endTenancy(tenancy.id, note || undefined);
+    setEnding(false);
+  }
 
   const t = tenancy;
   const property = properties.find((p) => p.id === t.property_id);
@@ -129,9 +138,18 @@ export default function TenancyCard({
           </div>
           {t.notes && <p className="mt-4 text-sm text-muted">{t.notes}</p>}
 
-          <button onClick={() => onEdit(t)} className="mt-4 text-sm font-medium text-accent hover:underline">
-            Edit tenancy details
-          </button>
+          <div className="mt-4 flex flex-wrap items-center gap-4">
+            <button onClick={() => onEdit(t)} className="text-sm font-medium text-accent hover:underline">
+              Edit tenancy details
+            </button>
+            {t.status === "ended" ? (
+              <span className="text-sm text-muted">Ended{t.ended_at ? ` · ${fmtDate(t.ended_at.slice(0, 10))}` : ""}</span>
+            ) : (
+              <button onClick={handleEnd} disabled={ending} className="text-sm font-medium text-bad hover:underline disabled:opacity-50">
+                {ending ? "Ending…" : "End tenancy"}
+              </button>
+            )}
+          </div>
 
           {/* Move-in checklist */}
           <div className="mt-6">
