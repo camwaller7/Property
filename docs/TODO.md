@@ -30,14 +30,16 @@ Goal: run your own properties (starting Eltham Ave, SA) through the whole flow f
 - [ ] **(test)** Do a real sign-up on the live domain → tell me the email → **I verify the new isolated org** (live cross-org isolation check) to close Section C end-to-end.
 
 ### Manager ↔ tenant email (core to real use)
-- [ ] **(you/build)** Turn on outbound email so the app can send onboarding links, notices, and **inspection reminders**. Decide: **Zapier Catch-Hook** (`ZAPIER_EMAIL_WEBHOOK_URL`) **or** switch app email to **Resend** (already verified). *If Resend, I do the (build) to point `/api/email` at Resend.*
+- [x] **(build)** App email runs on **Resend** (`/api/email`, `RESEND_SECRET` set). Remaining work is deliverability (DNS, above), not code.
 
 ### Prove the whole loop on a real property
 - [ ] **(test)** End-to-end walkthrough on Eltham Ave: add property → create tenancy → send onboarding link → tenant submits → generate agreement/handbook → enable portal → log a maintenance matter (thread both sides) → schedule inspection + tenant reminder → log costs + receipt → upload condition photos → record rent + mark paid.
 - [ ] **(build)** Fix anything that walkthrough surfaces (this is the point of the month).
 
 ### State correctness for where you operate
-- [ ] **(you/build)** Verify **SA** bond cap, notice periods and tribunal/authority links in `src/lib/jurisdictions.ts` are current (your live state first; the rest before public).
+- [x] **(build)** **SA** verified against CBS (Sep 2026): bond 4wk ≤ $800/wk else 6wk (from 1 Apr 2023); routine inspections 7–28 days notice, max 4/yr, 8am–8pm, not Sun/public holidays, max 2 hrs. Values in `src/lib/jurisdictions.ts` are current. *(Other states still to confirm before public.)*
+- [x] **(build)** Tenant→`/app` guard: a tenant who opens the manager app is redirected to `/tenant`.
+- [x] **(build)** Draft **Terms of Service** + **Privacy Policy** pages (`/legal/terms`, `/legal/privacy`, linked in the footer) + "not legal advice" note on the generated handbook. *(Placeholders + lawyer review before public — see 🅱.)*
 
 ### Optional during the test
 - [ ] **(you)** Set `ANTHROPIC_API_KEY` if you want to trial the **AI assistant** (Pro feature) during the month.
