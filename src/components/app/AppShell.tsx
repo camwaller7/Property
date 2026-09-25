@@ -161,12 +161,6 @@ function LoginScreen() {
     setBusy(false);
   }
 
-  // Runtime redirect target so email links work in dev, preview and production
-  // without hardcoding — points at the callback route that hydrates the session.
-  function callbackUrl() {
-    return `${window.location.origin}/auth/callback`;
-  }
-
   async function sendReset() {
     if (!email) {
       setErr("Enter your email first, then tap reset.");
@@ -176,7 +170,7 @@ function LoginScreen() {
     setErr("");
     setNotice("");
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: callbackUrl(),
+      redirectTo: `${window.location.origin}/auth/reset`,
     });
     setBusy(false);
     if (error) setErr(error.message);

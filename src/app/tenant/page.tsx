@@ -79,10 +79,6 @@ function TenantLoginForm() {
   const [err, setErr] = useState("");
   const [notice, setNotice] = useState("");
 
-  function callbackUrl() {
-    return `${window.location.origin}/tenant`;
-  }
-
   async function signIn() {
     if (!email || !password) return setErr("Enter your email and password.");
     setBusy(true);
@@ -98,7 +94,7 @@ function TenantLoginForm() {
     setBusy(true);
     setErr("");
     setNotice("");
-    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: callbackUrl() });
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/auth/reset` });
     setBusy(false);
     if (error) setErr(error.message);
     else setNotice("Password reset email sent — check your inbox.");
