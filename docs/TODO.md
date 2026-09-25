@@ -25,20 +25,27 @@ Goal: run your own properties (starting Eltham Ave, SA) through the whole flow f
 - [x] **(build)** **PR B (cron)** — **automatic reminder sending**: `vercel.json` runs `/api/cron/reminders` daily (21:00 UTC ≈ 7:30am Adelaide); it emails everyone on the lease 30 / 14 / 3 days before each scheduled inspection, de-duped via `inspection_reminders_sent`.
 - [ ] **(you)** Set **`CRON_SECRET`** (any long random string) and **`SUPABASE_SERVICE_ROLE_KEY`** in Vercel env so the reminder cron can run and send. (Vercel Cron sends the `CRON_SECRET` automatically; the endpoint 401s without it.)
 
+### Lease lifecycle & tenant portability — staged
+- [x] **(build)** **PR 1** — **End tenancy**: manager clicks "End tenancy" (optional reference note) → writes a tenant-owned `rental_history` snapshot and marks the tenancy ended. The tenant portal then shows a **past-tenancy record** (property name + lease dates only; live rent/notices/maintenance/documents hidden) and their **account stays live**. The portal also auto-switches to this view once `lease_end` passes.
+- [ ] **(build)** **PR 2** — **Transfer a tenant** to another of your properties: one action that moves them + their people/documents into a new tenancy and ends the old one, no re-application.
+- [ ] **(build)** **PR 3** — **Portable rental history**: the tenant's account shows their history across managers; tenant-consented **share to a new PM** (read-only reference), crossing org isolation only with consent.
+
 ### Auth / sign-in (Section C tail)
 - [x] **(build)** Tenant claim link handles an **existing account**: if the email already has an account (or a returning tenant already has one), they can **sign in on the claim link to link** it to the tenancy (`claim_tenancy` RPC), instead of the sign-up dead-ending on "already registered".
 - [~] **(you)** Fix Resend SMTP **sender → `noreply@corvelleproperty.com`** (gmail can't be a verified sender) so confirmation emails send.
 - [ ] **(test)** Do a real sign-up on the live domain → tell me the email → **I verify the new isolated org** (live cross-org isolation check) to close Section C end-to-end.
 
 ### Manager ↔ tenant email (core to real use)
-- [ ] **(you/build)** Turn on outbound email so the app can send onboarding links, notices, and **inspection reminders**. Decide: **Zapier Catch-Hook** (`ZAPIER_EMAIL_WEBHOOK_URL`) **or** switch app email to **Resend** (already verified). *If Resend, I do the (build) to point `/api/email` at Resend.*
+- [x] **(build)** App email runs on **Resend** (`/api/email`, `RESEND_SECRET` set). Remaining work is deliverability (DNS, above), not code.
 
 ### Prove the whole loop on a real property
 - [ ] **(test)** End-to-end walkthrough on Eltham Ave: add property → create tenancy → send onboarding link → tenant submits → generate agreement/handbook → enable portal → log a maintenance matter (thread both sides) → schedule inspection + tenant reminder → log costs + receipt → upload condition photos → record rent + mark paid.
 - [ ] **(build)** Fix anything that walkthrough surfaces (this is the point of the month).
 
 ### State correctness for where you operate
-- [ ] **(you/build)** Verify **SA** bond cap, notice periods and tribunal/authority links in `src/lib/jurisdictions.ts` are current (your live state first; the rest before public).
+- [x] **(build)** **SA** verified against CBS (Sep 2026): bond 4wk ≤ $800/wk else 6wk (from 1 Apr 2023); routine inspections 7–28 days notice, max 4/yr, 8am–8pm, not Sun/public holidays, max 2 hrs. Values in `src/lib/jurisdictions.ts` are current. *(Other states still to confirm before public.)*
+- [x] **(build)** Tenant→`/app` guard: a tenant who opens the manager app is redirected to `/tenant`.
+- [x] **(build)** Draft **Terms of Service** + **Privacy Policy** pages (`/legal/terms`, `/legal/privacy`, linked in the footer) + "not legal advice" note on the generated handbook. *(Placeholders + lawyer review before public — see 🅱.)*
 
 ### Optional during the test
 - [ ] **(you)** Set `ANTHROPIC_API_KEY` if you want to trial the **AI assistant** (Pro feature) during the month.

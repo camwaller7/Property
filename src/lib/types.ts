@@ -58,6 +58,27 @@ export interface Tenancy {
   onboarding: OnboardingItem[];
   notes: string | null;
   portal_token: string | null;
+  ended_at?: string | null;
+  created_at?: string;
+}
+
+// Snapshot written when a tenancy ends — a tenant-owned rental record that
+// survives past the live tenancy and is the basis for portable history.
+export interface RentalHistory {
+  id: string;
+  org_id?: string | null;
+  tenancy_id: string | null;
+  property_id: string | null;
+  tenant_user_id: string | null;
+  property_address: string | null;
+  tenant_name: string | null;
+  lease_start: string | null;
+  lease_end: string | null;
+  ended_on: string | null;
+  weekly_rent: number | null;
+  rent_frequency: string | null;
+  bond_amount: number | null;
+  conduct_note: string | null;
   created_at?: string;
 }
 
