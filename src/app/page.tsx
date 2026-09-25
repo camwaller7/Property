@@ -128,7 +128,13 @@ export default function Home() {
       </section>
 
       <footer className="border-t border-border px-6 py-10 text-center text-sm text-muted">
-        {brand.full} · Built with Next.js on Vercel, backed by Supabase.
+        <div className="flex flex-wrap items-center justify-center gap-4">
+          <Link href="/app" className="hover:text-foreground">Manager login</Link>
+          <Link href="/tenant" className="hover:text-foreground">Tenant login</Link>
+          <Link href="/legal/terms" className="hover:text-foreground">Terms</Link>
+          <Link href="/legal/privacy" className="hover:text-foreground">Privacy</Link>
+        </div>
+        <p className="mt-3">{brand.full} · Built with Next.js on Vercel, backed by Supabase.</p>
       </footer>
     </>
   );

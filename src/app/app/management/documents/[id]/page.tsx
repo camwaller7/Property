@@ -173,6 +173,12 @@ export default function DocumentsPage() {
           {references.length > 0 && (
             <p className="text-xs text-neutral-500">Application references on file: {references.length}.</p>
           )}
+
+          <p className="border-t border-neutral-300 pt-4 text-xs text-neutral-500">
+            General information prepared by {brand.full} to help run the tenancy. This is not legal
+            advice — the tenancy agreement and {juris?.authority.name || "your state authority"} rules
+            prevail if anything differs.
+          </p>
         </article>
       </div>
     </div>

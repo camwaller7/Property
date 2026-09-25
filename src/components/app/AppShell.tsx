@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type { Session } from "@supabase/supabase-js";
 import { brand } from "@/lib/brand";
 import { supabase } from "@/lib/supabase";
@@ -25,7 +25,11 @@ const nav = [
 export default function AppShell({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
+  // Tenants have accounts too but belong in /tenant, not the manager workspace.
+  // null = not yet checked, true = a tenant (redirecting), false = a manager.
+  const [isTenant, setIsTenant] = useState<boolean | null>(null);
   const pathname = usePathname();
+  const router = useRouter();
 
   useEffect(() => {
     let active = true;
@@ -43,8 +47,30 @@ export default function AppShell({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // If the signed-in account is a tenant, send them to their portal instead of
+  // showing an empty manager workspace.
+  useEffect(() => {
+    if (!session) return;
+    let active = true;
+    (async () => {
+      const { data } = await supabase.rpc("tenant_portal_token");
+      if (!active) return;
+      if (data) {
+        setIsTenant(true);
+        router.replace("/tenant");
+      } else {
+        setIsTenant(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [session, router]);
+
   if (!ready) return null;
   if (!session) return <LoginScreen />;
+  // Signed in but role not yet resolved, or a tenant being redirected.
+  if (isTenant !== false) return null;
 
   return (
     <PortfolioProvider>
