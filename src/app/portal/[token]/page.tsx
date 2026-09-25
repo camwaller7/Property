@@ -140,6 +140,52 @@ export default function PortalPage() {
     .filter((x) => x.d !== null && x.d >= 0)
     .sort((a, b) => (a.d ?? 0) - (b.d ?? 0));
 
+  // Once a tenancy ends (or its lease_end passes without renewal) the portal
+  // becomes a past-tenancy record: property name + dates only, no live rent,
+  // notices, maintenance or documents. The account stays live.
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const ended =
+    tenancy.status === "ended" || (!!tenancy.lease_end && tenancy.lease_end < todayIso);
+
+  if (ended) {
+    return (
+      <div className="mx-auto max-w-2xl px-6 py-12">
+        <header className="mb-10">
+          <div className="text-sm font-medium text-muted">{brand.full}</div>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight">
+            Welcome{tenancy.tenant_name ? `, ${tenancy.tenant_name.split(" ")[0]}` : ""}
+          </h1>
+          <p className="mt-1 text-muted">You don&apos;t have an active tenancy right now.</p>
+        </header>
+
+        <Card title="Past tenancy">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <Stat label="Property" value={property?.address || "—"} />
+            <Stat label="Lease start" value={fmtDate(tenancy.lease_start)} />
+            <Stat label="Lease end" value={fmtDate(tenancy.lease_end)} />
+          </div>
+          <p className="mt-4 text-sm text-muted">
+            This tenancy has ended. Your account stays open and your rental history is kept here — if
+            you rent another property managed with {brand.name}, it can be added to this portal.
+          </p>
+        </Card>
+
+        <Card title="Your property manager">
+          <div className="text-sm">
+            <div className="font-medium">{contact?.org || brand.full}</div>
+            {contact?.email && (
+              <a href={`mailto:${contact.email}`} className="text-accent hover:underline">
+                {contact.email}
+              </a>
+            )}
+          </div>
+        </Card>
+
+        <p className="mt-8 text-xs text-muted">Powered by {brand.name}.</p>
+      </div>
+    );
+  }
+
   const outstanding = payments
     .filter((p) => p.status !== "paid" && !p.received_date && p.due_date)
     .sort((a, b) => (a.due_date || "").localeCompare(b.due_date || ""));

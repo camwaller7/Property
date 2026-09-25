@@ -108,6 +108,7 @@ interface PortfolioContextValue {
     id?: string,
     people?: LeaseTenantDraft[]
   ) => Promise<{ error?: string }>;
+  endTenancy: (tenancyId: string, conductNote?: string) => Promise<{ error?: string }>;
   setOnboarding: (tenancyId: string, items: OnboardingItem[]) => Promise<{ error?: string }>;
   saveInspection: (data: InspectionInput, id?: string) => Promise<{ error?: string }>;
   createApplication: (tenancyId: string) => Promise<{ token?: string; error?: string }>;
@@ -423,6 +424,48 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       return {};
     },
     [reload, org, leaseTenants]
+  );
+
+  // End a tenancy: snapshot a rental-history record (tenant-owned, survives the
+  // live tenancy) then mark the tenancy ended. The tenant portal then shows a
+  // past-tenancy view instead of live details.
+  const endTenancy = useCallback(
+    async (tenancyId: string, conductNote?: string) => {
+      const t = tenancies.find((x) => x.id === tenancyId);
+      if (!t) return { error: "Tenancy not found." };
+      const property = properties.find((p) => p.id === t.property_id);
+      // Link the snapshot to the tenant's account (if they created a portal
+      // login) so it becomes part of their portable history.
+      const { data: link } = await supabase
+        .from("tenant_portal_users")
+        .select("user_id")
+        .eq("tenancy_id", tenancyId)
+        .maybeSingle();
+      const today = new Date().toISOString().slice(0, 10);
+      const snap = await supabase.from("rental_history").insert({
+        tenancy_id: tenancyId,
+        property_id: t.property_id,
+        tenant_user_id: (link as { user_id?: string } | null)?.user_id ?? null,
+        property_address: property?.address ?? null,
+        tenant_name: t.tenant_name,
+        lease_start: t.lease_start,
+        lease_end: t.lease_end,
+        ended_on: today,
+        weekly_rent: t.weekly_rent,
+        rent_frequency: t.rent_frequency,
+        bond_amount: t.bond_amount,
+        conduct_note: conductNote?.trim() || null,
+      });
+      if (snap.error) return { error: snap.error.message };
+      const res = await supabase
+        .from("tenancies")
+        .update({ status: "ended", ended_at: new Date().toISOString() })
+        .eq("id", tenancyId);
+      if (res.error) return { error: res.error.message };
+      await reload();
+      return {};
+    },
+    [tenancies, properties, reload]
   );
 
   const setOnboarding = useCallback(
@@ -843,6 +886,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     addPayment,
     markPaymentReceived,
     saveTenancy,
+    endTenancy,
     setOnboarding,
     saveInspection,
     createApplication,
