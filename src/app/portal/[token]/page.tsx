@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { brand } from "@/lib/brand";
 import Badge from "@/components/ui/Badge";
 import InspectionChecklist from "@/components/InspectionChecklist";
+import RentalHistoryPanel from "@/components/portal/RentalHistoryPanel";
 import { Field, Select, Textarea } from "@/components/app/Field";
 import { fmtDate, fmtMoney, nextWeekdayDate, daysUntil } from "@/lib/format";
 import { REMINDER_DAYS } from "@/lib/inspections";
@@ -169,6 +170,8 @@ export default function PortalPage() {
             you rent another property managed with {brand.name}, it can be added to this portal.
           </p>
         </Card>
+
+        <RentalHistoryPanel />
 
         <Card title="Your property manager">
           <div className="text-sm">
@@ -368,6 +371,9 @@ export default function PortalPage() {
           </ul>
         )}
       </Card>
+
+      {/* Portable rental history + sharing (signed-in tenants only) */}
+      <RentalHistoryPanel />
 
       {/* Contact */}
       <Card title="Your property manager">

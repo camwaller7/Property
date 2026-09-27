@@ -82,6 +82,19 @@ export interface RentalHistory {
   created_at?: string;
 }
 
+// A tenant's consent record letting one property-manager org read their
+// portable rental history. Created by a manager's request, approved by the
+// tenant in their portal, and revocable.
+export type ShareStatus = "pending" | "approved" | "declined" | "revoked";
+
+export interface RentalHistoryShare {
+  id: string;
+  status: ShareStatus;
+  created_at?: string;
+  responded_at?: string | null;
+  org_name?: string | null; // requesting org, resolved for the tenant view
+}
+
 // A per-person document/ID stored against a lease tenant (private bucket).
 export interface TenantDocument {
   kind: string; // e.g. "id", "payslip", "reference", "other"

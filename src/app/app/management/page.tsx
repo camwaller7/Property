@@ -6,11 +6,18 @@ import Modal from "@/components/ui/Modal";
 import TenancyForm from "@/components/app/TenancyForm";
 import ManagementDashboard from "@/components/app/ManagementDashboard";
 import TenantsTab from "@/components/app/TenantsTab";
+import RentalHistoryReferences from "@/components/app/RentalHistoryReferences";
 import InspectionChecklist from "@/components/InspectionChecklist";
 import { usePortfolio } from "@/lib/portfolio";
 import type { Tenancy } from "@/lib/types";
 
-type Tab = "dashboard" | "tenants";
+type Tab = "dashboard" | "tenants" | "references";
+
+const TAB_LABEL: Record<Tab, string> = {
+  dashboard: "Dashboard",
+  tenants: "Tenants",
+  references: "History references",
+};
 
 export default function ManagementPage() {
   const { properties, loading, error } = usePortfolio();
@@ -46,15 +53,15 @@ export default function ManagementPage() {
 
       {/* Tabs */}
       <div className="mb-8 flex gap-1 border-b border-border">
-        {(["dashboard", "tenants"] as Tab[]).map((t) => (
+        {(["dashboard", "tenants", "references"] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`-mb-px border-b-2 px-4 py-2.5 text-sm font-medium capitalize transition-colors ${
+            className={`-mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
               tab === t ? "border-foreground text-foreground" : "border-transparent text-muted hover:text-foreground"
             }`}
           >
-            {t}
+            {TAB_LABEL[t]}
           </button>
         ))}
       </div>
@@ -67,6 +74,8 @@ export default function ManagementPage() {
 
       {loading ? (
         <p className="text-muted">Loading…</p>
+      ) : tab === "references" ? (
+        <RentalHistoryReferences />
       ) : properties.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border p-8 text-center text-muted">
           Add a property first, then create a tenancy for it.{" "}
