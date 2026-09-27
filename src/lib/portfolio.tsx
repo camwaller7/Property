@@ -109,6 +109,17 @@ interface PortfolioContextValue {
     people?: LeaseTenantDraft[]
   ) => Promise<{ error?: string }>;
   endTenancy: (tenancyId: string, conductNote?: string) => Promise<{ error?: string }>;
+  transferTenancy: (
+    tenancyId: string,
+    input: {
+      newPropertyId: string;
+      moveInDate?: string | null;
+      leaseStart?: string | null;
+      leaseEnd?: string | null;
+      weeklyRent?: number | null;
+      conductNote?: string;
+    }
+  ) => Promise<{ error?: string; newTenancyId?: string }>;
   setOnboarding: (tenancyId: string, items: OnboardingItem[]) => Promise<{ error?: string }>;
   saveInspection: (data: InspectionInput, id?: string) => Promise<{ error?: string }>;
   createApplication: (tenancyId: string) => Promise<{ token?: string; error?: string }>;
@@ -466,6 +477,48 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       return {};
     },
     [tenancies, properties, reload]
+  );
+
+  // Transfer a tenant to another property in the same portfolio. One atomic
+  // RPC: creates a fresh live tenancy on the target property carrying the
+  // tenant's identity + people/documents across, re-points their portal login,
+  // and ends the old tenancy (with a rental-history snapshot). No re-application.
+  const transferTenancy = useCallback(
+    async (
+      tenancyId: string,
+      input: {
+        newPropertyId: string;
+        moveInDate?: string | null;
+        leaseStart?: string | null;
+        leaseEnd?: string | null;
+        weeklyRent?: number | null;
+        conductNote?: string;
+      }
+    ) => {
+      const { data, error } = await supabase.rpc("transfer_tenancy", {
+        p_tenancy_id: tenancyId,
+        p_new_property_id: input.newPropertyId,
+        p_move_in_date: input.moveInDate ?? null,
+        p_lease_start: input.leaseStart ?? null,
+        p_lease_end: input.leaseEnd ?? null,
+        p_weekly_rent: input.weeklyRent ?? null,
+        p_conduct_note: input.conductNote ?? null,
+      });
+      if (error) return { error: error.message };
+      const result = (data ?? {}) as { error?: string; new_tenancy_id?: string };
+      if (result.error) {
+        const messages: Record<string, string> = {
+          tenancy_not_found: "That tenancy no longer exists.",
+          not_authorised: "You don't have access to that tenancy.",
+          same_property: "Pick a different property to transfer to.",
+          target_not_in_portfolio: "The target property isn't in your portfolio.",
+        };
+        return { error: messages[result.error] ?? result.error };
+      }
+      await reload();
+      return { newTenancyId: result.new_tenancy_id };
+    },
+    [reload]
   );
 
   const setOnboarding = useCallback(
@@ -887,6 +940,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     markPaymentReceived,
     saveTenancy,
     endTenancy,
+    transferTenancy,
     setOnboarding,
     saveInspection,
     createApplication,

@@ -35,9 +35,16 @@ export default function TenancyCard({
   tenancy: Tenancy;
   onEdit: (t: Tenancy) => void;
 }) {
-  const { properties, inspections, setOnboarding, saveInspection, endTenancy, org } = usePortfolio();
+  const { properties, inspections, setOnboarding, saveInspection, endTenancy, transferTenancy, org } = usePortfolio();
   const [open, setOpen] = useState(true);
   const [ending, setEnding] = useState(false);
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [transferTo, setTransferTo] = useState("");
+  const [transferMoveIn, setTransferMoveIn] = useState(todayIso());
+  const [transferRent, setTransferRent] = useState("");
+  const [transferNote, setTransferNote] = useState("");
+  const [transferring, setTransferring] = useState(false);
+  const [transferErr, setTransferErr] = useState("");
 
   async function handleEnd() {
     if (!globalThis.confirm?.("End this tenancy? The tenant's portal will switch to a past-tenancy record and live details will be hidden. Your records are kept.")) return;
@@ -47,8 +54,33 @@ export default function TenancyCard({
     setEnding(false);
   }
 
+  async function handleTransfer() {
+    setTransferErr("");
+    if (!transferTo) {
+      setTransferErr("Choose the property to transfer them to.");
+      return;
+    }
+    setTransferring(true);
+    const rent = transferRent.trim() === "" ? null : Number(transferRent);
+    const res = await transferTenancy(tenancy.id, {
+      newPropertyId: transferTo,
+      moveInDate: transferMoveIn || null,
+      leaseStart: transferMoveIn || null,
+      weeklyRent: rent != null && !Number.isNaN(rent) ? rent : null,
+      conductNote: transferNote.trim() || undefined,
+    });
+    setTransferring(false);
+    if (res.error) {
+      setTransferErr(res.error);
+      return;
+    }
+    setTransferOpen(false);
+  }
+
   const t = tenancy;
   const property = properties.find((p) => p.id === t.property_id);
+  // Other properties in the portfolio this tenant could be transferred to.
+  const otherProperties = properties.filter((p) => p.id !== t.property_id);
   const items = t.onboarding || [];
   const doneCount = items.filter((i) => i.done).length;
   const pct = items.length ? Math.round((doneCount / items.length) * 100) : 0;
@@ -145,11 +177,97 @@ export default function TenancyCard({
             {t.status === "ended" ? (
               <span className="text-sm text-muted">Ended{t.ended_at ? ` · ${fmtDate(t.ended_at.slice(0, 10))}` : ""}</span>
             ) : (
-              <button onClick={handleEnd} disabled={ending} className="text-sm font-medium text-bad hover:underline disabled:opacity-50">
-                {ending ? "Ending…" : "End tenancy"}
-              </button>
+              <>
+                {otherProperties.length > 0 && (
+                  <button
+                    onClick={() => {
+                      setTransferOpen((o) => !o);
+                      setTransferErr("");
+                    }}
+                    className="text-sm font-medium text-accent hover:underline"
+                  >
+                    Transfer to another property
+                  </button>
+                )}
+                <button onClick={handleEnd} disabled={ending} className="text-sm font-medium text-bad hover:underline disabled:opacity-50">
+                  {ending ? "Ending…" : "End tenancy"}
+                </button>
+              </>
             )}
           </div>
+
+          {transferOpen && t.status !== "ended" && (
+            <div className="mt-3 rounded-xl border border-border bg-surface p-4">
+              <h4 className="text-sm font-semibold">Transfer this tenant to another property</h4>
+              <p className="mt-1 text-xs text-muted">
+                Moves {t.tenant_name || "the tenant"} and everyone on the lease (plus their documents) into a
+                new tenancy — no new application. This property gets a past-tenancy record and their portal
+                switches to the new one.
+              </p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <label className="text-sm">
+                  <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">New property</span>
+                  <select
+                    value={transferTo}
+                    onChange={(e) => setTransferTo(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 outline-none focus:border-accent"
+                  >
+                    <option value="">Select a property…</option>
+                    {otherProperties.map((p) => (
+                      <option key={p.id} value={p.id}>{p.address || "(unnamed property)"}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-sm">
+                  <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">Move-in / new lease start</span>
+                  <input
+                    type="date"
+                    value={transferMoveIn}
+                    onChange={(e) => setTransferMoveIn(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 outline-none focus:border-accent"
+                  />
+                </label>
+                <label className="text-sm">
+                  <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">Weekly rent (optional)</span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    value={transferRent}
+                    onChange={(e) => setTransferRent(e.target.value)}
+                    placeholder={t.weekly_rent != null ? `Carry over ${fmtMoney(t.weekly_rent)}` : "Same as before"}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 outline-none focus:border-accent"
+                  />
+                </label>
+                <label className="text-sm sm:col-span-2">
+                  <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">Reference note for the ended lease (optional)</span>
+                  <input
+                    type="text"
+                    value={transferNote}
+                    onChange={(e) => setTransferNote(e.target.value)}
+                    placeholder="e.g. always paid on time, property left in good order"
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 outline-none focus:border-accent"
+                  />
+                </label>
+              </div>
+              {transferErr && <p className="mt-2 text-sm text-bad">{transferErr}</p>}
+              <div className="mt-3 flex items-center gap-3">
+                <button
+                  onClick={handleTransfer}
+                  disabled={transferring}
+                  className="rounded-full bg-foreground px-5 py-2 text-sm font-medium text-background transition-opacity hover:opacity-80 disabled:opacity-50"
+                >
+                  {transferring ? "Transferring…" : "Transfer tenant"}
+                </button>
+                <button
+                  onClick={() => setTransferOpen(false)}
+                  disabled={transferring}
+                  className="text-sm text-muted hover:text-foreground disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Move-in checklist */}
           <div className="mt-6">

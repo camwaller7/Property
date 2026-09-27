@@ -254,6 +254,10 @@ export interface PropertyCost {
   amount: number | null;
   spent_on: string | null;
   receipt_path: string | null;
+  // Whether `amount` is GST-inclusive (AU: GST component = amount / 11). Many
+  // outgoings (rates, water, land tax, interest) are GST-free, so this is a
+  // per-cost flag rather than assumed on every line.
+  includes_gst?: boolean;
   created_at?: string;
 }
 

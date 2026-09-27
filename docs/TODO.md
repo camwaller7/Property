@@ -4,7 +4,7 @@ Two living lists, kept current as we work. `docs/ROADMAP.md` holds the full hist
 
 Legend: `[ ]` open · `[~]` in progress / waiting · `[x]` done · **(you)** dashboard/browser · **(build)** code (Claude) · **(test)** hands-on check
 
-_Last updated: 2026-09-24_
+_Last updated: 2026-09-27_
 
 ---
 
@@ -27,12 +27,13 @@ Goal: run your own properties (starting Eltham Ave, SA) through the whole flow f
 
 ### Lease lifecycle & tenant portability — staged
 - [x] **(build)** **PR 1** — **End tenancy**: manager clicks "End tenancy" (optional reference note) → writes a tenant-owned `rental_history` snapshot and marks the tenancy ended. The tenant portal then shows a **past-tenancy record** (property name + lease dates only; live rent/notices/maintenance/documents hidden) and their **account stays live**. The portal also auto-switches to this view once `lease_end` passes.
-- [ ] **(build)** **PR 2** — **Transfer a tenant** to another of your properties: one action that moves them + their people/documents into a new tenancy and ends the old one, no re-application.
+- [x] **(build)** **PR 2** — **Transfer a tenant** to another of your properties: one "Transfer to another property" action on the lease card moves the tenant + everyone on the lease (and their documents) into a fresh live tenancy on the target property, re-points their portal login, and ends the old tenancy with a rental-history snapshot — no re-application. Same-portfolio only (`transfer_tenancy` RPC never crosses org isolation).
 - [ ] **(build)** **PR 3** — **Portable rental history**: the tenant's account shows their history across managers; tenant-consented **share to a new PM** (read-only reference), crossing org isolation only with consent.
 
 ### Recurring bills & calendar
 - [x] **(build)** **Council rates / water / other recurring bills** per property (amount, cycle, next-due, payer) on the Cost tracking page — auto-projected into the Management **calendar** and a new **"Rates & bills due (30 days)"** dashboard tile. Council rates are landlord-only; **water/tenant-recoverable bills** have a **"Send to tenant"** action that posts a portal notice. Landlord-only data — never shown in the tenant portal.
 - [x] **(build)** Calendar list below the grid is now a **2-week snapshot** ("Next 2 weeks") instead of a flat list.
+- [x] **(build)** **GST line on Cost tracking** — each cost has an "Amount includes GST (10%)" flag (default on; untick GST-free rates/water/land-tax/interest). The Breakdown shows a **GST included** line (1/11th of GST-inclusive lines = the BAS input-tax credit), each row shows its GST component, and the CSV export gains GST-inclusive + GST-component columns. Not tax advice.
 
 ### Auth / sign-in (Section C tail)
 - [x] **(build)** Tenant claim link handles an **existing account**: if the email already has an account (or a returning tenant already has one), they can **sign in on the claim link to link** it to the tenancy (`claim_tenancy` RPC), instead of the sign-up dead-ending on "already registered".

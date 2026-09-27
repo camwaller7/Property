@@ -30,6 +30,13 @@ const CATEGORY_BAR: Record<CostCategory, string> = {
 };
 const CATEGORIES: CostCategory[] = ["holding", "maintenance", "improvement"];
 
+// GST component of a cost. AU GST is 1/11th of a GST-inclusive amount; costs
+// flagged GST-free (rates, water, land tax, interest…) contribute nothing.
+function gstComponent(c: Pick<PropertyCost, "amount" | "includes_gst">): number {
+  if (c.includes_gst === false) return 0;
+  return (Number(c.amount) || 0) / 11;
+}
+
 // Australian financial year (1 Jul – 30 Jun) label for a YYYY-MM-DD date.
 function financialYear(dateStr: string | null): string | null {
   if (!dateStr) return null;
@@ -63,7 +70,11 @@ export default function CostsPage() {
   );
 
   const byCategory: Record<CostCategory, number> = { holding: 0, maintenance: 0, improvement: 0 };
-  for (const c of filtered) byCategory[c.category] += Number(c.amount) || 0;
+  let gstTotal = 0;
+  for (const c of filtered) {
+    byCategory[c.category] += Number(c.amount) || 0;
+    gstTotal += gstComponent(c);
+  }
   const total = byCategory.holding + byCategory.maintenance + byCategory.improvement;
 
   function propLabel(id: string | null) {
@@ -71,7 +82,7 @@ export default function CostsPage() {
   }
 
   function exportCsv() {
-    const header = ["Date", "Financial year", "Property", "Category", "Description", "Amount"];
+    const header = ["Date", "Financial year", "Property", "Category", "Description", "Amount", "GST-inclusive", "GST component"];
     const rows = filtered.map((c) => [
       c.spent_on || "",
       financialYear(c.spent_on) || "",
@@ -79,6 +90,8 @@ export default function CostsPage() {
       CATEGORY_LABEL[c.category],
       (c.description || "").replace(/"/g, '""'),
       String(Number(c.amount) || 0),
+      c.includes_gst === false ? "No" : "Yes",
+      gstComponent(c).toFixed(2),
     ]);
     const csv = [header, ...rows].map((r) => r.map((x) => `"${x}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
@@ -175,9 +188,19 @@ export default function CostsPage() {
                 )}
               </div>
             )}
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-surface px-4 py-3">
+              <div>
+                <div className="text-sm font-medium">GST included in these costs</div>
+                <div className="text-xs text-muted">
+                  1/11th of the GST-inclusive lines — the input-tax credit you may claim on your BAS if registered.
+                </div>
+              </div>
+              <span className="text-lg font-semibold">{fmtMoney(gstTotal)}</span>
+            </div>
             <p className="mt-3 text-xs text-muted">
               Holding &amp; maintenance are typically ongoing costs; improvements are usually capital
-              (added to the cost base, often depreciable). Confirm treatment with your accountant — this isn&apos;t tax advice.
+              (added to the cost base, often depreciable). GST is only counted on lines marked GST-inclusive
+              (rates, water, land tax and interest are usually GST-free). Confirm treatment with your accountant — this isn&apos;t tax advice.
             </p>
           </section>
 
@@ -240,7 +263,14 @@ function CostRow({ cost, propLabel }: { cost: PropertyCost; propLabel: string })
             Receipt
           </button>
         )}
-        <span className="font-medium">{fmtMoney(Number(cost.amount) || 0)}</span>
+        <span className="text-right">
+          <span className="font-medium">{fmtMoney(Number(cost.amount) || 0)}</span>
+          {cost.includes_gst === false ? (
+            <span className="block text-[10px] uppercase tracking-wide text-muted">GST-free</span>
+          ) : (
+            <span className="block text-[10px] text-muted">incl. GST {fmtMoney(gstComponent(cost))}</span>
+          )}
+        </span>
         <button onClick={remove} disabled={busy} className="text-xs text-muted hover:text-bad disabled:opacity-50" title="Delete cost">
           ✕
         </button>
@@ -256,6 +286,7 @@ function CostForm({ onDone }: { onDone: () => void }) {
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
   const [spentOn, setSpentOn] = useState("");
+  const [includesGst, setIncludesGst] = useState(true);
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -289,6 +320,7 @@ function CostForm({ onDone }: { onDone: () => void }) {
       description: description.trim(),
       amount: Number(amount),
       spent_on: spentOn || null,
+      includes_gst: includesGst,
       receipt_path: receiptPath,
     });
     setBusy(false);
@@ -313,6 +345,22 @@ function CostForm({ onDone }: { onDone: () => void }) {
         <Field label="Description" className="sm:col-span-2" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="e.g. Council rates Q3 / plumber invoice #123" />
         <Field label="Amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" />
         <Field label="Date" type="date" value={spentOn} onChange={(e) => setSpentOn(e.target.value)} />
+        <label className="flex items-start gap-2 sm:col-span-2">
+          <input
+            type="checkbox"
+            checked={includesGst}
+            onChange={(e) => setIncludesGst(e.target.checked)}
+            className="mt-0.5"
+          />
+          <span className="text-sm">
+            Amount includes GST (10%)
+            <span className="ml-2 text-xs text-muted">
+              {includesGst && amount && Number(amount) > 0
+                ? `GST component ≈ ${fmtMoney(Number(amount) / 11)}`
+                : "Untick for GST-free costs like council rates, water, land tax or loan interest."}
+            </span>
+          </span>
+        </label>
         <label className="block sm:col-span-2">
           <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">Receipt / bill (optional)</span>
           <input
