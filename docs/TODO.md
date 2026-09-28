@@ -62,6 +62,7 @@ Goal: run your own properties (starting Eltham Ave, SA) through the whole flow f
 Everything needed before other people create accounts and pay.
 
 ### Security & auth
+- [x] **(build)** **Inactivity auto-logout** — the manager workspace signs you out after **4 hours** of browser inactivity (or if the browser was closed longer than that), forcing a fresh login. RLS already isolates data; this is the extra safety layer on the persisted session.
 - [ ] **(you)** Enable **leaked-password protection** (HaveIBeenPwned) in Supabase Auth → Passwords. *(May need Supabase Pro.)*
 - [ ] **(you)** Email **confirmation ON** with working Resend SMTP (blocks fake/typo sign-ups).
 - [ ] **(you)** Add **CAPTCHA / bot protection** on sign-up (Supabase Auth → Attack Protection).
