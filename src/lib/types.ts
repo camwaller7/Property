@@ -16,6 +16,12 @@ export interface Property {
   loan_balance: number | null;
   lender: string | null;
   state: string | null; // NSW VIC QLD SA WA TAS ACT NT
+  // Landlord legal identity (goes on the agreement; a service address for
+  // notices is a legal must) and property attributes that gate hand-over.
+  landlord_name: string | null;
+  landlord_service_address: string | null;
+  has_pool: boolean;
+  is_strata: boolean;
   created_at?: string;
 }
 
@@ -381,4 +387,8 @@ export const emptyProperty: PropertyInput = {
   loan_balance: null,
   lender: "",
   state: null,
+  landlord_name: null,
+  landlord_service_address: null,
+  has_pool: false,
+  is_strata: false,
 };

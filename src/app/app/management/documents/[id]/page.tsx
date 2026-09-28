@@ -14,7 +14,7 @@ const BLANK = "________________";
 
 export default function DocumentsPage() {
   const params = useParams<{ id: string }>();
-  const { tenancies, properties, applications, loading } = usePortfolio();
+  const { tenancies, properties, applications, loading, org } = usePortfolio();
 
   if (loading) return <p className="text-muted">Loading…</p>;
 
@@ -68,9 +68,9 @@ export default function DocumentsPage() {
           <Doc.Header title="Residential Tenancy Agreement" subtitle={juris?.name || "Australia"} />
 
           <Doc.Section title="1. Parties">
-            <Doc.Row label="Landlord" value={BLANK} />
-            <Doc.Row label="Landlord contact" value={BLANK} />
-            <Doc.Row label="Managing agent (if any)" value={BLANK} />
+            <Doc.Row label="Landlord" value={property?.landlord_name || BLANK} />
+            <Doc.Row label="Landlord service address (for notices)" value={property?.landlord_service_address || BLANK} />
+            <Doc.Row label="Managing agent (if any)" value={org?.name || BLANK} />
             <Doc.Row label="Tenant(s)" value={tenantName} />
             <Doc.Row label="Tenant email" value={val("email") || tenancy.tenant_email || BLANK} />
             <Doc.Row label="Tenant phone" value={val("phone") || tenancy.tenant_phone || BLANK} />
@@ -81,6 +81,8 @@ export default function DocumentsPage() {
             <Doc.Row label="Rented property" value={property?.address || BLANK} />
             <Doc.Row label="Total occupants" value={val("num_occupants") || BLANK} />
             <Doc.Row label="Pets" value={val("has_pets") === "Yes" ? val("pet_details") || "Yes" : "No"} />
+            <Doc.Row label="Strata / community title" value={property?.is_strata ? "Yes — by-laws apply and are provided to the tenant" : "No"} />
+            <Doc.Row label="Swimming pool / spa" value={property?.has_pool ? "Yes — a pool-safety compliance certificate is provided" : "No"} />
           </Doc.Section>
 
           <Doc.Section title="3. Term">

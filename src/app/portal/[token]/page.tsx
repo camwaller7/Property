@@ -20,10 +20,14 @@ interface LoadedProperty {
   address: string | null;
   weekly_rent: number | null;
   rent_due_day: string | null;
+  is_strata?: boolean;
+  has_pool?: boolean;
 }
 interface Contact {
   org: string | null;
   email: string | null;
+  landlord_name?: string | null;
+  landlord_service_address?: string | null;
 }
 interface Payload {
   org_id?: string | null;
@@ -399,8 +403,20 @@ export default function PortalPage() {
               {contact.email}
             </a>
           )}
+          {contact?.landlord_name && (
+            <div className="mt-2 text-muted">Landlord: {contact.landlord_name}</div>
+          )}
+          {contact?.landlord_service_address && (
+            <div className="text-muted">Address for notices: {contact.landlord_service_address}</div>
+          )}
           {tenancy.emergency_contact && (
             <div className="mt-2 text-muted">Emergency contact: {tenancy.emergency_contact}</div>
+          )}
+          {(property?.is_strata || property?.has_pool) && (
+            <div className="mt-3 rounded-lg border border-border p-3 text-xs text-muted">
+              {property?.is_strata && <div>This property is under strata / community title — the by-laws apply and are provided in your documents.</div>}
+              {property?.has_pool && <div>This property has a pool / spa — a pool-safety compliance certificate is provided.</div>}
+            </div>
           )}
         </div>
       </Card>
