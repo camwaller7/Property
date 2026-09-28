@@ -4,7 +4,28 @@ Two living lists, kept current as we work. `docs/ROADMAP.md` holds the full hist
 
 Legend: `[ ]` open · `[~]` in progress / waiting · `[x]` done · **(you)** dashboard/browser · **(build)** code (Claude) · **(test)** hands-on check
 
-_Last updated: 2026-09-27_
+_Last updated: 2026-09-28_
+
+---
+
+## ⛔ OUTSTANDING — blocked on you / can't be completed from here
+The rolling list of things I can't finish myself, because they need a dashboard
+action, an external account/secret, a hands-on test, or a product decision.
+Kept current as we go.
+
+**Needs a setting or secret only you can add:**
+- [ ] **(you)** Resend: verify `corvelleproperty.com` + set sender to `noreply@corvelleproperty.com`.
+- [ ] **(you)** GoDaddy DNS: add SPF / DKIM / DMARC (`docs/EMAIL-DELIVERABILITY.md`).
+- [ ] **(you)** Vercel env: `CRON_SECRET` + `SUPABASE_SERVICE_ROLE_KEY` (reminder cron 401s without them).
+- [ ] **(you)** Supabase Auth: decide the **Confirm email** toggle; enable leaked-password protection + CAPTCHA before public.
+- [ ] **(you)** `ANTHROPIC_API_KEY` in Vercel — needed for the AI assistant **and** the messaging-assistant feature below.
+
+**Needs you to do a real-world test (I fix what it surfaces):**
+- [ ] **(test)** Live sign-up on the domain → send me the email → I verify org isolation.
+- [ ] **(test)** End-to-end walkthrough on Eltham Ave (add property → tenancy → onboarding → agreement → portal → maintenance → inspection → costs → rent).
+
+**Needs a product decision before I can build (see the section it belongs to):**
+- [ ] **Messaging assistant (Telegram/WhatsApp → auto-file)** — awaiting your choice of channel + go-ahead. Spec in 🅱 "Later product".
 
 ---
 
@@ -104,6 +125,27 @@ Full comparison of our forms/docs/requirements against established AU agency + a
 - [ ] **(you)** `admin@corvelleproperty.com` mailbox live (MX) for inbound/support mail.
 
 ### Later product (not blocking public, but on the roadmap)
+- [ ] **(build)** **Messaging assistant — text documents in, auto-filed.** A manager
+  messages a bot (Telegram to start) with a photo/PDF + a line of text; the AI
+  assistant reads it, classifies it (receipt → cost tracking with amount + GST +
+  property; maintenance update → matter thread; contract/handbook → documents;
+  etc.), files it in the software, and replies to confirm. Design:
+  - **Transport:** a webhook endpoint (e.g. `/api/telegram`) receiving Bot API
+    updates, verified by a secret token; downloads the attached file.
+  - **Identity:** a one-time **link step** — the manager links their Telegram
+    chat to their org (a code shown in-app), stored in a `messaging_links`
+    table, so the bot only ever writes to that manager's org (never crosses
+    isolation). Unlinked chats are rejected.
+  - **Parsing:** Claude (vision) extracts fields + picks the destination; the
+    file lands in the right private bucket and the right table via the existing
+    server-side flows. Low-confidence → it asks a clarifying question instead of
+    guessing.
+  - **Prereqs (yours):** a Telegram bot token (BotFather), `ANTHROPIC_API_KEY`,
+    and a public webhook (Vercel gives this). WhatsApp is possible later but
+    needs a Business API/provider (Twilio/Meta) — heavier setup.
+  - **Buildable now without the bot:** the same parse-and-file pipeline exposed
+    inside the app's Assistant (drag a receipt in → it drafts the cost for you to
+    confirm), then wire the Telegram transport on top once the token exists.
 - [ ] **(build)** Development module (feasibility, stages, budgets, approvals).
 - [ ] **(build)** Deeper investment analytics (cash-on-cash, gearing, portfolio trends).
 - [ ] **(build)** Compliance schedule (recurring smoke-alarm/safety checks + reminders). → **now specified as P1 in `docs/DOCUMENT-AUDIT.md`.**
