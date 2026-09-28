@@ -277,6 +277,9 @@ export interface PropertyCost {
   // outgoings (rates, water, land tax, interest) are GST-free, so this is a
   // per-cost flag rather than assumed on every line.
   includes_gst?: boolean;
+  // The actual GST captured on the invoice. `amount` is the total (inc GST);
+  // gst_amount is the GST portion. Defaults to amount/11 in the UI but editable.
+  gst_amount?: number | null;
   created_at?: string;
 }
 

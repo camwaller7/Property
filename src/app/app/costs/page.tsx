@@ -30,10 +30,13 @@ const CATEGORY_BAR: Record<CostCategory, string> = {
 };
 const CATEGORIES: CostCategory[] = ["holding", "maintenance", "improvement"];
 
-// GST component of a cost. AU GST is 1/11th of a GST-inclusive amount; costs
-// flagged GST-free (rates, water, land tax, interest…) contribute nothing.
-function gstComponent(c: Pick<PropertyCost, "amount" | "includes_gst">): number {
+// GST component of a cost. Costs flagged GST-free (rates, water, land tax,
+// interest…) contribute nothing. Otherwise use the GST amount captured on the
+// invoice; if none was entered, fall back to the AU default of 1/11th of the
+// GST-inclusive total.
+function gstComponent(c: Pick<PropertyCost, "amount" | "includes_gst" | "gst_amount">): number {
   if (c.includes_gst === false) return 0;
+  if (c.gst_amount != null && c.gst_amount !== undefined) return Number(c.gst_amount) || 0;
   return (Number(c.amount) || 0) / 11;
 }
 
@@ -287,6 +290,7 @@ function CostForm({ onDone }: { onDone: () => void }) {
   const [amount, setAmount] = useState("");
   const [spentOn, setSpentOn] = useState("");
   const [includesGst, setIncludesGst] = useState(true);
+  const [gstAmount, setGstAmount] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -314,6 +318,14 @@ function CostForm({ onDone }: { onDone: () => void }) {
       receiptPath = path;
     }
 
+    // Capture GST: explicit amount if entered, else the AU 1/11th default;
+    // null when the cost is GST-free.
+    const gst = includesGst
+      ? gstAmount.trim() !== ""
+        ? Number(gstAmount)
+        : Number(amount) / 11
+      : null;
+
     const res = await addPropertyCost({
       property_id: propertyId,
       category,
@@ -321,6 +333,7 @@ function CostForm({ onDone }: { onDone: () => void }) {
       amount: Number(amount),
       spent_on: spentOn || null,
       includes_gst: includesGst,
+      gst_amount: gst,
       receipt_path: receiptPath,
     });
     setBusy(false);
@@ -355,12 +368,19 @@ function CostForm({ onDone }: { onDone: () => void }) {
           <span className="text-sm">
             Amount includes GST (10%)
             <span className="ml-2 text-xs text-muted">
-              {includesGst && amount && Number(amount) > 0
-                ? `GST component ≈ ${fmtMoney(Number(amount) / 11)}`
-                : "Untick for GST-free costs like council rates, water, land tax or loan interest."}
+              Untick for GST-free costs like council rates, water, land tax or loan interest.
             </span>
           </span>
         </label>
+        {includesGst && (
+          <Field
+            label="GST amount ($)"
+            type="number"
+            value={gstAmount}
+            onChange={(e) => setGstAmount(e.target.value)}
+            placeholder={amount && Number(amount) > 0 ? (Number(amount) / 11).toFixed(2) : "auto (1/11th)"}
+          />
+        )}
         <label className="block sm:col-span-2">
           <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">Receipt / bill (optional)</span>
           <input
