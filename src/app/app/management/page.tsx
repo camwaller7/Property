@@ -8,6 +8,7 @@ import ManagementDashboard from "@/components/app/ManagementDashboard";
 import TenantsTab from "@/components/app/TenantsTab";
 import RentalHistoryReferences from "@/components/app/RentalHistoryReferences";
 import InspectionChecklist from "@/components/InspectionChecklist";
+import { CONDITION_PHOTO_CHECKLIST, CONDITION_PHOTO_CHECKLIST_NOTE } from "@/lib/conditionPhotoChecklist";
 import { usePortfolio } from "@/lib/portfolio";
 import type { Tenancy } from "@/lib/types";
 
@@ -25,6 +26,7 @@ export default function ManagementPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Tenancy | undefined>(undefined);
   const [showChecklist, setShowChecklist] = useState(false);
+  const [showPhotoChecklist, setShowPhotoChecklist] = useState(false);
 
   function openAdd() {
     setEditing(undefined);
@@ -104,6 +106,29 @@ export default function ManagementPage() {
             {showChecklist && (
               <div className="mt-4 border-t border-border pt-4">
                 <InspectionChecklist interactive={false} />
+              </div>
+            )}
+          </section>
+
+          {/* Landlord ingoing condition / photo checklist — CBS Inspection Sheet
+              (SA). Landlord-only; not shown in the tenant portal. */}
+          <section className="mt-8 rounded-2xl border border-border p-5">
+            <button
+              onClick={() => setShowPhotoChecklist((s) => !s)}
+              className="flex w-full items-center justify-between text-left"
+            >
+              <div>
+                <h2 className="text-lg font-semibold tracking-tight">Ingoing condition photo checklist</h2>
+                <p className="mt-0.5 text-sm text-muted">
+                  Room-by-room photo list mapped to SA&apos;s official CBS Inspection Sheet — document the
+                  property&apos;s condition before a tenant moves in.
+                </p>
+              </div>
+              <span className="text-sm font-medium text-accent">{showPhotoChecklist ? "Hide" : "Show"}</span>
+            </button>
+            {showPhotoChecklist && (
+              <div className="mt-4 border-t border-border pt-4">
+                <InspectionChecklist sections={CONDITION_PHOTO_CHECKLIST} note={CONDITION_PHOTO_CHECKLIST_NOTE} />
               </div>
             )}
           </section>
