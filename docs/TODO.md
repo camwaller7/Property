@@ -83,6 +83,18 @@ Everything needed before other people create accounts and pay.
 - [ ] **(you/build)** Verify **all 8 states/territories'** bond caps, notice periods, tribunal + authority links against official sources.
 - [ ] **(build)** Empty states, error states, and **mobile/responsive QA** across every page + the tenant portal.
 
+### Documents & requirements audit (see `docs/DOCUMENT-AUDIT.md`, 2026-09-28)
+Full comparison of our forms/docs/requirements against established AU agency + authority practice, with sourced gaps. Priorities from that doc:
+- [ ] **(build) P1 — Compliance & safety register** — per-property smoke/gas/electrical/pool/blind-cord checks with due dates, reminders, certificate storage and 7-yr history. *(Highest-value gap; promotes the old "Compliance schedule" item.)*
+- [ ] **(build) P1 — Condition report issued/acknowledged tracking** + tenant portal **counter-sign** (the doc a bond claim rests on).
+- [ ] **(build) P1 — Pool/spa compliance + strata by-laws** capture & hand-over; **landlord legal name + service address** as a first-class record.
+- [ ] **(build) P2 — Rent ledger** view + export (running balance, arrears; providable within 7 days).
+- [ ] **(build) P2 — Routine inspection report** output (findings + photos → owner/tenant).
+- [ ] **(build) P2 — Fuller lease clauses** (inclusions schedule, occupants, pets, water/utilities, safety, break-lease/assignment).
+- [ ] **(build) P2 — Screening depth** (rent-to-income flag, credit/tenancy-database result field, structured reference-check capture).
+- [ ] **(build) P2 — Arrears workflow** (reminder → breach → notice timeline).
+- [ ] **(build) P3 — Agency-grade owner side** — management agreement, owner statements/disbursements, landlord insurance record, key register, disclosure statements.
+
 ### Growth & ops
 - [ ] **(build)** Marketing / lead-capture site (public front to acquire clients).
 - [ ] **(build)** Tenant **scheduled email reminders** (rent due) — server-side scheduled send (pg_cron/edge + email).
@@ -93,4 +105,4 @@ Everything needed before other people create accounts and pay.
 ### Later product (not blocking public, but on the roadmap)
 - [ ] **(build)** Development module (feasibility, stages, budgets, approvals).
 - [ ] **(build)** Deeper investment analytics (cash-on-cash, gearing, portfolio trends).
-- [ ] **(build)** Compliance schedule (recurring smoke-alarm/safety checks + reminders).
+- [ ] **(build)** Compliance schedule (recurring smoke-alarm/safety checks + reminders). → **now specified as P1 in `docs/DOCUMENT-AUDIT.md`.**
