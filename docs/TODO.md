@@ -73,6 +73,9 @@ Goal: run your own properties (starting Eltham Ave, SA) through the whole flow f
 - [x] **(build)** Tenant→`/app` guard: a tenant who opens the manager app is redirected to `/tenant`.
 - [x] **(build)** Draft **Terms of Service** + **Privacy Policy** pages (`/legal/terms`, `/legal/privacy`, linked in the footer) + "not legal advice" note on the generated handbook. *(Placeholders + lawyer review before public — see 🅱.)*
 
+### Branding & polish
+- [ ] **(build)** **Landing-page logo reveal** — on first open of the site/app, play a brief logo-reveal animation, then reveal the page (from a forwarded reel, François Deverre). Respect `prefers-reduced-motion` and only show once per session.
+
 ### Optional during the test
 - [ ] **(you)** Set `ANTHROPIC_API_KEY` if you want to trial the **AI assistant** (Pro feature) during the month.
 - [ ] **(you/build)** Set up **Stripe Connect (Express)** only if you want to test *online rent collection* live; otherwise defer — manual "mark paid" is fine for the test.
