@@ -1,12 +1,13 @@
 // Aggregates upcoming property events from the workspace data into a single
 // calendar feed. Pure function so it's easy to reason about and reuse.
 
-import type { Inspection, MaintenanceRequest, Notice, Payment, Property, PropertyBill, Tenancy } from "./types";
+import type { Inspection, MaintenanceRequest, Notice, Payment, Property, PropertyBill, ComplianceItem, Tenancy } from "./types";
 import { fmtMoney } from "./format";
 import { REMINDER_DAYS, minusDays } from "./inspections";
 import { BILL_KIND_LABEL, projectBillDates } from "./bills";
+import { COMPLIANCE_KIND_LABEL } from "./compliance";
 
-export type CalEventType = "rent" | "inspection" | "lease" | "movein" | "notice" | "task" | "reminder" | "bill";
+export type CalEventType = "rent" | "inspection" | "lease" | "movein" | "notice" | "task" | "reminder" | "bill" | "compliance";
 
 export interface CalEvent {
   date: string; // YYYY-MM-DD
@@ -24,6 +25,7 @@ export const EVENT_META: Record<CalEventType, { label: string; tone: "good" | "b
   task: { label: "Task", tone: "warn" },
   reminder: { label: "Reminder", tone: "warn" },
   bill: { label: "Bill", tone: "warn" },
+  compliance: { label: "Compliance", tone: "bad" },
 };
 
 export function collectEvents(args: {
@@ -34,6 +36,7 @@ export function collectEvents(args: {
   notices: Notice[];
   maintenance: MaintenanceRequest[];
   bills?: PropertyBill[];
+  compliance?: ComplianceItem[];
 }): CalEvent[] {
   const events: CalEvent[] = [];
 
@@ -98,7 +101,35 @@ export function collectEvents(args: {
     }
   }
 
+  // Compliance & safety checks — project the next due date forward on its
+  // cadence so upcoming (and overdue) checks surface in the calendar.
+  for (const c of args.compliance ?? []) {
+    if (!c.active || !c.next_due) continue;
+    const name = c.label || COMPLIANCE_KIND_LABEL[c.kind] || "Compliance check";
+    for (const date of projectBillDatesEveryMonths(c.next_due, c.interval_months)) {
+      events.push({ date, type: "compliance", label: `${name} due`, propertyId: c.property_id });
+    }
+  }
+
   return events.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+// Project a date forward every `months` over the next 12 months (compliance
+// cadences are in months rather than the bill frequency enum).
+function projectBillDatesEveryMonths(anchor: string, months: number): string[] {
+  const start = new Date(anchor + "T00:00:00");
+  if (Number.isNaN(start.getTime())) return [];
+  const step = Math.max(1, months || 12);
+  const horizon = new Date();
+  horizon.setMonth(horizon.getMonth() + 12);
+  const dates: string[] = [];
+  for (let i = 0; i < 60; i++) {
+    const d = new Date(start);
+    d.setMonth(d.getMonth() + i * step);
+    if (d.getTime() > horizon.getTime()) break;
+    dates.push(iso(d));
+  }
+  return dates;
 }
 
 export function iso(d: Date): string {

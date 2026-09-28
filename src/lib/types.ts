@@ -304,6 +304,34 @@ export interface PropertyBill {
   created_at?: string;
 }
 
+// Recurring safety-compliance obligations per property (smoke alarms, gas,
+// electrical, pool/spa fence, corded blinds, minimum standards). Landlord data;
+// each has a cadence (interval_months), a last-done date and a computed next-due.
+export type ComplianceKind =
+  | "smoke_alarm"
+  | "gas"
+  | "electrical"
+  | "pool"
+  | "blind_cords"
+  | "min_standards"
+  | "other";
+
+export interface ComplianceItem {
+  id: string;
+  org_id?: string | null;
+  property_id: string | null;
+  kind: ComplianceKind | string;
+  label: string | null;
+  provider: string | null;
+  last_done: string | null;
+  interval_months: number;
+  next_due: string | null;
+  certificate_path: string | null;
+  notes: string | null;
+  active: boolean;
+  created_at?: string;
+}
+
 export type InspectionKind = "entry" | "routine" | "exit";
 export type InspectionStatus = "scheduled" | "completed" | "cancelled";
 

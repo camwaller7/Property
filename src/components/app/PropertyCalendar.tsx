@@ -9,7 +9,7 @@ import { collectEvents, EVENT_META, iso, type CalEvent } from "@/lib/calendar";
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 export default function PropertyCalendar() {
-  const { properties, paymentsByProperty, tenancies, inspections, notices, maintenance, propertyBills } = usePortfolio();
+  const { properties, paymentsByProperty, tenancies, inspections, notices, maintenance, propertyBills, complianceItems } = usePortfolio();
   const [propFilter, setPropFilter] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [cursor, setCursor] = useState(() => {
@@ -18,8 +18,8 @@ export default function PropertyCalendar() {
   });
 
   const events = useMemo(
-    () => collectEvents({ properties, paymentsByProperty, tenancies, inspections, notices, maintenance, bills: propertyBills }),
-    [properties, paymentsByProperty, tenancies, inspections, notices, maintenance, propertyBills]
+    () => collectEvents({ properties, paymentsByProperty, tenancies, inspections, notices, maintenance, bills: propertyBills, compliance: complianceItems }),
+    [properties, paymentsByProperty, tenancies, inspections, notices, maintenance, propertyBills, complianceItems]
   );
   const filtered = propFilter ? events.filter((e) => e.propertyId === propFilter) : events;
 

@@ -28,6 +28,7 @@ import type {
   PropertyCost,
   PropertyInput,
   PropertyBill,
+  ComplianceItem,
   PropertyPhoto,
   Tenancy,
   TenantApplication,
@@ -55,6 +56,7 @@ export type ResourceInput = Omit<PortalResource, "id" | "created_at">;
 export type PropertyCostInput = Omit<PropertyCost, "id" | "org_id" | "created_at">;
 export type PropertyPhotoInput = Omit<PropertyPhoto, "id" | "org_id" | "created_at">;
 export type PropertyBillInput = Omit<PropertyBill, "id" | "org_id" | "created_at">;
+export type ComplianceItemInput = Omit<ComplianceItem, "id" | "org_id" | "created_at">;
 
 interface PortfolioContextValue {
   properties: Property[];
@@ -69,6 +71,7 @@ interface PortfolioContextValue {
   propertyCosts: PropertyCost[];
   propertyPhotos: PropertyPhoto[];
   propertyBills: PropertyBill[];
+  complianceItems: ComplianceItem[];
   notifications: AppNotification[];
   unreadCount: number;
   org: Organization | null;
@@ -134,6 +137,8 @@ interface PortfolioContextValue {
   deletePropertyPhoto: (id: string, path: string) => Promise<{ error?: string }>;
   addPropertyBill: (data: PropertyBillInput) => Promise<{ error?: string }>;
   deletePropertyBill: (id: string) => Promise<{ error?: string }>;
+  saveComplianceItem: (data: ComplianceItemInput, id?: string) => Promise<{ error?: string }>;
+  deleteComplianceItem: (id: string) => Promise<{ error?: string }>;
   addTenantDocument: (leaseTenantId: string, doc: TenantDocument) => Promise<{ error?: string }>;
   removeTenantDocument: (leaseTenantId: string, doc: TenantDocument) => Promise<{ error?: string }>;
 }
@@ -153,6 +158,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   const [propertyCosts, setPropertyCosts] = useState<PropertyCost[]>([]);
   const [propertyPhotos, setPropertyPhotos] = useState<PropertyPhoto[]>([]);
   const [propertyBills, setPropertyBills] = useState<PropertyBill[]>([]);
+  const [complianceItems, setComplianceItems] = useState<ComplianceItem[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [org, setOrg] = useState<Organization | null>(null);
   const [members, setMembers] = useState<OrgMember[]>([]);
@@ -237,6 +243,12 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       .select("*")
       .order("next_due");
     setPropertyBills((bills as PropertyBill[]) || []);
+
+    const { data: compliance } = await supabase
+      .from("compliance_items")
+      .select("*")
+      .order("next_due");
+    setComplianceItems((compliance as ComplianceItem[]) || []);
 
     const { data: notifs } = await supabase
       .from("notifications")
@@ -861,6 +873,28 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     [reload]
   );
 
+  const saveComplianceItem = useCallback(
+    async (data: ComplianceItemInput, id?: string) => {
+      const res = id
+        ? await supabase.from("compliance_items").update(data).eq("id", id)
+        : await supabase.from("compliance_items").insert(data);
+      if (res.error) return { error: res.error.message };
+      await reload();
+      return {};
+    },
+    [reload]
+  );
+
+  const deleteComplianceItem = useCallback(
+    async (id: string) => {
+      const res = await supabase.from("compliance_items").delete().eq("id", id);
+      if (res.error) return { error: res.error.message };
+      await reload();
+      return {};
+    },
+    [reload]
+  );
+
   const addTenantDocument = useCallback(
     async (leaseTenantId: string, doc: TenantDocument) => {
       const lt = leaseTenants.find((x) => x.id === leaseTenantId);
@@ -916,6 +950,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     propertyCosts,
     propertyPhotos,
     propertyBills,
+    complianceItems,
     notifications,
     unreadCount,
     org,
@@ -957,6 +992,8 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     removeTenantDocument,
     addPropertyBill,
     deletePropertyBill,
+    saveComplianceItem,
+    deleteComplianceItem,
   };
 
   return <PortfolioContext.Provider value={value}>{children}</PortfolioContext.Provider>;

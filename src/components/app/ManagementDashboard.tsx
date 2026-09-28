@@ -7,6 +7,7 @@ import MaintenanceManager from "./MaintenanceManager";
 import { usePortfolio } from "@/lib/portfolio";
 import { daysUntil, fmtDate, fmtMoney } from "@/lib/format";
 import { BILL_KIND_LABEL, projectBillDates } from "@/lib/bills";
+import { COMPLIANCE_KIND_LABEL, complianceStatus } from "@/lib/compliance";
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
@@ -15,7 +16,7 @@ function todayIso() {
 // The Management dashboard: the event calendar up top, then at-a-glance tiles
 // summarising what needs attention across the whole portfolio.
 export default function ManagementDashboard() {
-  const { properties, tenancies, inspections, maintenance, paymentsByProperty, propertyBills } = usePortfolio();
+  const { properties, tenancies, inspections, maintenance, paymentsByProperty, propertyBills, complianceItems } = usePortfolio();
 
   const propLabel = (id: string | null) => properties.find((p) => p.id === id)?.address || "—";
 
@@ -59,8 +60,15 @@ export default function ManagementDashboard() {
       )
       .sort((a, b) => (a.d ?? 0) - (b.d ?? 0));
 
-    return { overdueRent, openMaintenance, urgent, inspectionsDue, leaseExpiries, billsDue };
-  }, [tenancies, inspections, maintenance, paymentsByProperty, propertyBills]);
+    // Compliance & safety checks that are overdue or due within 30 days.
+    const complianceDue = complianceItems
+      .filter((c) => c.active)
+      .map((c) => ({ c, status: complianceStatus(c), d: daysUntil(c.next_due) }))
+      .filter((x) => x.status === "overdue" || x.status === "due_soon")
+      .sort((a, b) => (a.d ?? 0) - (b.d ?? 0));
+
+    return { overdueRent, openMaintenance, urgent, inspectionsDue, leaseExpiries, billsDue, complianceDue };
+  }, [tenancies, inspections, maintenance, paymentsByProperty, propertyBills, complianceItems]);
 
   const urgentCount = data.urgent.length + data.overdueRent.length;
 
@@ -151,6 +159,28 @@ export default function ManagementDashboard() {
                   tone={d! <= 7 ? "warn" : "neutral"}
                   label={`${b.label || BILL_KIND_LABEL[b.kind] || "Bill"}${b.amount != null ? ` · ${fmtMoney(b.amount)}` : ""}`}
                   meta={`${propLabel(b.property_id)} · ${fmtDate(date)}${b.payer === "tenant" ? " · recover from tenant" : ""}`}
+                />
+              ))}
+            </ul>
+          )}
+        </Tile>
+
+        {/* Compliance & safety due */}
+        <Tile
+          title="Compliance & safety due"
+          count={data.complianceDue.length}
+          tone={data.complianceDue.some((x) => x.status === "overdue") ? "bad" : data.complianceDue.length > 0 ? "warn" : "good"}
+        >
+          {data.complianceDue.length === 0 ? (
+            <Empty>Nothing due soon.</Empty>
+          ) : (
+            <ul className="space-y-1.5">
+              {data.complianceDue.map(({ c, status, d }) => (
+                <Row
+                  key={c.id}
+                  tone={status === "overdue" ? "bad" : "warn"}
+                  label={c.label || COMPLIANCE_KIND_LABEL[c.kind] || "Compliance check"}
+                  meta={`${propLabel(c.property_id)} · ${status === "overdue" ? `overdue (${fmtDate(c.next_due)})` : `due ${fmtDate(c.next_due)} (${d}d)`}`}
                 />
               ))}
             </ul>
