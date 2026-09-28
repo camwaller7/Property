@@ -29,6 +29,7 @@ import type {
   PropertyInput,
   PropertyBill,
   ComplianceItem,
+  ConditionReport,
   PropertyPhoto,
   Tenancy,
   TenantApplication,
@@ -72,6 +73,7 @@ interface PortfolioContextValue {
   propertyPhotos: PropertyPhoto[];
   propertyBills: PropertyBill[];
   complianceItems: ComplianceItem[];
+  conditionReports: ConditionReport[];
   notifications: AppNotification[];
   unreadCount: number;
   org: Organization | null;
@@ -139,6 +141,14 @@ interface PortfolioContextValue {
   deletePropertyBill: (id: string) => Promise<{ error?: string }>;
   saveComplianceItem: (data: ComplianceItemInput, id?: string) => Promise<{ error?: string }>;
   deleteComplianceItem: (id: string) => Promise<{ error?: string }>;
+  issueConditionReport: (input: {
+    tenancyId: string;
+    propertyId: string | null;
+    kind: "ingoing" | "outgoing";
+    notes?: string | null;
+    file?: File | null;
+  }) => Promise<{ error?: string }>;
+  deleteConditionReport: (id: string) => Promise<{ error?: string }>;
   addTenantDocument: (leaseTenantId: string, doc: TenantDocument) => Promise<{ error?: string }>;
   removeTenantDocument: (leaseTenantId: string, doc: TenantDocument) => Promise<{ error?: string }>;
 }
@@ -159,6 +169,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   const [propertyPhotos, setPropertyPhotos] = useState<PropertyPhoto[]>([]);
   const [propertyBills, setPropertyBills] = useState<PropertyBill[]>([]);
   const [complianceItems, setComplianceItems] = useState<ComplianceItem[]>([]);
+  const [conditionReports, setConditionReports] = useState<ConditionReport[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [org, setOrg] = useState<Organization | null>(null);
   const [members, setMembers] = useState<OrgMember[]>([]);
@@ -249,6 +260,12 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       .select("*")
       .order("next_due");
     setComplianceItems((compliance as ComplianceItem[]) || []);
+
+    const { data: condReports } = await supabase
+      .from("condition_reports")
+      .select("*")
+      .order("issued_at", { ascending: false });
+    setConditionReports((condReports as ConditionReport[]) || []);
 
     const { data: notifs } = await supabase
       .from("notifications")
@@ -895,6 +912,47 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     [reload]
   );
 
+  const issueConditionReport = useCallback(
+    async (input: {
+      tenancyId: string;
+      propertyId: string | null;
+      kind: "ingoing" | "outgoing";
+      notes?: string | null;
+      file?: File | null;
+    }) => {
+      let document_path: string | null = null;
+      if (input.file) {
+        if (!org?.id) return { error: "Couldn't determine your organisation for the upload." };
+        const safe = input.file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const path = `${org.id}/condition/${crypto.randomUUID()}-${safe}`;
+        const up = await supabase.storage.from("tenant-documents").upload(path, input.file);
+        if (up.error) return { error: `Report upload failed: ${up.error.message}` };
+        document_path = path;
+      }
+      const res = await supabase.from("condition_reports").insert({
+        tenancy_id: input.tenancyId,
+        property_id: input.propertyId,
+        kind: input.kind,
+        notes: input.notes?.trim() || null,
+        document_path,
+      });
+      if (res.error) return { error: res.error.message };
+      await reload();
+      return {};
+    },
+    [reload, org]
+  );
+
+  const deleteConditionReport = useCallback(
+    async (id: string) => {
+      const res = await supabase.from("condition_reports").delete().eq("id", id);
+      if (res.error) return { error: res.error.message };
+      await reload();
+      return {};
+    },
+    [reload]
+  );
+
   const addTenantDocument = useCallback(
     async (leaseTenantId: string, doc: TenantDocument) => {
       const lt = leaseTenants.find((x) => x.id === leaseTenantId);
@@ -951,6 +1009,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     propertyPhotos,
     propertyBills,
     complianceItems,
+    conditionReports,
     notifications,
     unreadCount,
     org,
@@ -994,6 +1053,8 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     deletePropertyBill,
     saveComplianceItem,
     deleteComplianceItem,
+    issueConditionReport,
+    deleteConditionReport,
   };
 
   return <PortfolioContext.Provider value={value}>{children}</PortfolioContext.Provider>;

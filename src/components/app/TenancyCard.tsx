@@ -35,7 +35,7 @@ export default function TenancyCard({
   tenancy: Tenancy;
   onEdit: (t: Tenancy) => void;
 }) {
-  const { properties, inspections, setOnboarding, saveInspection, endTenancy, transferTenancy, org } = usePortfolio();
+  const { properties, inspections, setOnboarding, saveInspection, endTenancy, transferTenancy, conditionReports, issueConditionReport, deleteConditionReport, org } = usePortfolio();
   const [open, setOpen] = useState(true);
   const [ending, setEnding] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
@@ -45,6 +45,27 @@ export default function TenancyCard({
   const [transferNote, setTransferNote] = useState("");
   const [transferring, setTransferring] = useState(false);
   const [transferErr, setTransferErr] = useState("");
+  const [crKind, setCrKind] = useState<"ingoing" | "outgoing">("ingoing");
+  const [crNotes, setCrNotes] = useState("");
+  const [crFile, setCrFile] = useState<File | null>(null);
+  const [crBusy, setCrBusy] = useState(false);
+  const [crErr, setCrErr] = useState("");
+
+  async function issueReport() {
+    setCrErr("");
+    setCrBusy(true);
+    const res = await issueConditionReport({
+      tenancyId: tenancy.id,
+      propertyId: tenancy.property_id,
+      kind: crKind,
+      notes: crNotes,
+      file: crFile,
+    });
+    setCrBusy(false);
+    if (res.error) return setCrErr(res.error);
+    setCrNotes("");
+    setCrFile(null);
+  }
 
   async function handleEnd() {
     if (!globalThis.confirm?.("End this tenancy? The tenant's portal will switch to a past-tenancy record and live details will be hidden. Your records are kept.")) return;
@@ -81,6 +102,9 @@ export default function TenancyCard({
   const property = properties.find((p) => p.id === t.property_id);
   // Other properties in the portfolio this tenant could be transferred to.
   const otherProperties = properties.filter((p) => p.id !== t.property_id);
+  const myReports = conditionReports
+    .filter((r) => r.tenancy_id === t.id)
+    .sort((a, b) => (b.issued_at || "").localeCompare(a.issued_at || ""));
   const items = t.onboarding || [];
   const doneCount = items.filter((i) => i.done).length;
   const pct = items.length ? Math.round((doneCount / items.length) * 100) : 0;
@@ -360,6 +384,80 @@ export default function TenancyCard({
               </ul>
             )}
             {t.property_id && <InspectionScheduler propertyId={t.property_id} tenancyId={t.id} />}
+          </div>
+
+          {/* Condition reports — issue to the tenant to counter-sign in their portal */}
+          <div className="mt-6">
+            <h4 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted">Condition reports</h4>
+            {myReports.length === 0 ? (
+              <p className="mb-3 text-sm text-muted">None issued yet.</p>
+            ) : (
+              <ul className="mb-3 space-y-2">
+                {myReports.map((r) => (
+                  <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2 text-sm">
+                    <span>
+                      <span className="font-medium capitalize">{r.kind}</span>
+                      {" · issued "}
+                      {fmtDate(r.issued_at.slice(0, 10))}
+                      {r.notes ? <span className="block text-xs text-muted">{r.notes}</span> : null}
+                      {r.acknowledged_at && r.tenant_comment ? (
+                        <span className="block text-xs text-muted">Tenant note: {r.tenant_comment}</span>
+                      ) : null}
+                    </span>
+                    <span className="flex items-center gap-2">
+                      {r.acknowledged_at ? (
+                        <Badge tone="good">Acknowledged{r.acknowledged_name ? ` · ${r.acknowledged_name}` : ""}</Badge>
+                      ) : (
+                        <Badge tone="warn">Awaiting tenant</Badge>
+                      )}
+                      <button onClick={() => deleteConditionReport(r.id)} className="text-xs text-muted hover:text-bad">
+                        Remove
+                      </button>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="rounded-lg border border-border p-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  value={crKind}
+                  onChange={(e) => setCrKind(e.target.value as "ingoing" | "outgoing")}
+                  className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm outline-none focus:border-accent"
+                >
+                  <option value="ingoing">Ingoing</option>
+                  <option value="outgoing">Outgoing</option>
+                </select>
+                <input
+                  type="text"
+                  value={crNotes}
+                  onChange={(e) => setCrNotes(e.target.value)}
+                  placeholder="Notes (optional)"
+                  className="min-w-[180px] flex-1 rounded-lg border border-border bg-background px-3 py-1.5 text-sm outline-none focus:border-accent"
+                />
+                <label className="text-xs text-muted">
+                  <span className="mr-2">Attach report (optional)</span>
+                  <input
+                    type="file"
+                    accept="image/*,application/pdf"
+                    onChange={(e) => setCrFile(e.target.files?.[0] ?? null)}
+                    className="text-xs file:mr-2 file:rounded-full file:border-0 file:bg-surface file:px-3 file:py-1.5 file:text-xs file:font-medium"
+                  />
+                </label>
+                <button
+                  onClick={issueReport}
+                  disabled={crBusy}
+                  className="rounded-full bg-foreground px-4 py-1.5 text-sm font-medium text-background hover:opacity-80 disabled:opacity-50"
+                >
+                  {crBusy ? "Issuing…" : "Issue report"}
+                </button>
+              </div>
+              <p className="mt-2 text-xs text-muted">
+                The tenant sees this in their portal and can acknowledge (counter-sign) it — the record a bond
+                claim rests on.
+              </p>
+              {crErr && <p className="mt-2 text-sm text-bad">{crErr}</p>}
+            </div>
           </div>
         </div>
       )}

@@ -86,7 +86,7 @@ Everything needed before other people create accounts and pay.
 ### Documents & requirements audit (see `docs/DOCUMENT-AUDIT.md`, 2026-09-28)
 Full comparison of our forms/docs/requirements against established AU agency + authority practice, with sourced gaps. Priorities from that doc:
 - [x] **(build) P1 — Compliance & safety register** — new **Compliance** tab: per-property smoke/gas/electrical/pool/blind-cord/min-standards items with editable cadence, last-done → auto next-due, provider, private certificate storage, "mark done today", and a status (Up to date / Due soon / Overdue). Due dates flow into the Management **calendar** + a **"Compliance & safety due"** dashboard tile. Per-state cadences still to be confirmed against the jurisdiction data.
-- [ ] **(build) P1 — Condition report issued/acknowledged tracking** + tenant portal **counter-sign** (the doc a bond claim rests on).
+- [x] **(build) P1 — Condition report issued/acknowledged tracking** + tenant portal **counter-sign**. Manager issues an ingoing/outgoing condition report (optional attached file) from the lease card; the tenant sees it in their portal and **acknowledges** it (typed name + optional disagreement note), which stamps `acknowledged_at`. Manager sees Acknowledged / Awaiting tenant status. `condition_reports` table + token-scoped `portal_acknowledge_condition_report` RPC; `portal_get` now returns the reports.
 - [ ] **(build) P1 — Pool/spa compliance + strata by-laws** capture & hand-over; **landlord legal name + service address** as a first-class record.
 - [ ] **(build) P2 — Rent ledger** view + export (running balance, arrears; providable within 7 days).
 - [ ] **(build) P2 — Routine inspection report** output (findings + photos → owner/tenant).

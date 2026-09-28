@@ -332,6 +332,24 @@ export interface ComplianceItem {
   created_at?: string;
 }
 
+// A condition report issued to a tenant that they counter-sign in the portal.
+// The document a bond claim rests on — issued_at + acknowledged_at track the
+// hand-over and the tenant's acknowledgement.
+export interface ConditionReport {
+  id: string;
+  org_id?: string | null;
+  tenancy_id: string | null;
+  property_id: string | null;
+  kind: "ingoing" | "outgoing" | string;
+  document_path: string | null;
+  notes: string | null;
+  issued_at: string;
+  acknowledged_at: string | null;
+  acknowledged_name: string | null;
+  tenant_comment: string | null;
+  created_at?: string;
+}
+
 export type InspectionKind = "entry" | "routine" | "exit";
 export type InspectionStatus = "scheduled" | "completed" | "cancelled";
 
