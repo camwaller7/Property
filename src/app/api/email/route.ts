@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { brand } from "@/lib/brand";
+import { appendFooter } from "@/lib/emailFooter";
+import { unsubscribeUrl } from "@/lib/unsubscribeToken";
 
 // Sends manager/tenant emails via Resend (RESEND_SECRET, server-only). The
 // "from" address must be on a Resend-verified domain — defaults to
@@ -8,14 +10,27 @@ import { brand } from "@/lib/brand";
 // Catch-Hook (ZAPIER_EMAIL_WEBHOOK_URL) if that's all that's configured, so
 // existing setups keep working. Returns a clear 501 until one is set.
 export async function POST(req: Request) {
-  let payload: { to?: string; subject?: string; body?: string; tenancyId?: string; fromName?: string; replyTo?: string; token?: string };
+  let payload: {
+    to?: string;
+    subject?: string;
+    body?: string;
+    tenancyId?: string;
+    fromName?: string;
+    replyTo?: string;
+    token?: string;
+    // "notification" = non-transactional/bulk mail (e.g. reminders): gets an
+    // unsubscribe facility and is skipped for recipients who've opted out.
+    // Anything else is treated as transactional (default).
+    category?: "transactional" | "notification";
+  };
   try {
     payload = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const { to, subject, body, tenancyId, fromName, replyTo, token } = payload;
+  const { to, subject, body, tenancyId, fromName, replyTo, token, category } = payload;
+  const isNotification = category === "notification";
   if (!to || !subject) {
     return NextResponse.json({ error: "Recipient and subject are required." }, { status: 400 });
   }
@@ -43,7 +58,33 @@ export async function POST(req: Request) {
   // A real reply-to (a monitored mailbox) improves deliverability and lets
   // recipients reply to a human. Falls back to EMAIL_REPLY_TO, then admin@domain.
   const reply_to = replyTo || process.env.EMAIL_REPLY_TO || `admin@${brand.domain}`;
-  const text = body ?? "";
+
+  // Honour unsubscribes on non-transactional mail. Recipients who opted out are
+  // silently skipped (reported as ok so callers/cron don't treat it as a
+  // failure). Transactional mail is never suppressed.
+  if (isNotification) {
+    try {
+      const { data: suppressed } = await supabase.rpc("is_email_suppressed", { p_email: to });
+      if (suppressed === true) {
+        return NextResponse.json({ ok: true, skipped: "unsubscribed" });
+      }
+    } catch {
+      // If the check fails, err on the side of sending.
+    }
+  }
+
+  // Append the sender-identity footer (all mail), plus an unsubscribe facility
+  // on notification mail: a signed link when UNSUBSCRIBE_SECRET is set,
+  // otherwise a reply-to opt-out address.
+  const businessAddress = process.env.EMAIL_BUSINESS_ADDRESS || null;
+  const unsubSecret = process.env.UNSUBSCRIBE_SECRET;
+  const origin = new URL(req.url).origin;
+  const unsubLink = isNotification && unsubSecret ? unsubscribeUrl(origin, to, unsubSecret) : null;
+  const text = appendFooter(body, {
+    businessAddress,
+    unsubscribeUrl: unsubLink,
+    optOutContact: isNotification && !unsubLink ? reply_to : null,
+  });
 
   let status: "sent" | "failed" = "sent";
   let errorText: string | null = null;

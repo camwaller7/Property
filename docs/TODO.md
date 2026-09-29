@@ -4,7 +4,7 @@ Two living lists, kept current as we work. `docs/ROADMAP.md` holds the full hist
 
 Legend: `[ ]` open · `[~]` in progress / waiting · `[x]` done · **(you)** dashboard/browser · **(build)** code (Claude) · **(test)** hands-on check
 
-_Last updated: 2026-09-28_
+_Last updated: 2026-09-29_
 
 ---
 
@@ -17,8 +17,10 @@ Kept current as we go.
 - [ ] **(you)** Resend: verify `corvelleproperty.com` + set sender to `noreply@corvelleproperty.com`.
 - [ ] **(you)** GoDaddy DNS: add SPF / DKIM / DMARC (`docs/EMAIL-DELIVERABILITY.md`).
 - [ ] **(you)** Vercel env: `CRON_SECRET` + `SUPABASE_SERVICE_ROLE_KEY` (reminder cron 401s without them).
+- [ ] **(you)** Vercel env: `UNSUBSCRIBE_SECRET` (any long random string) so reminder emails carry a self-serve unsubscribe link; without it they fall back to a "reply to opt out" line. Optional: `EMAIL_BUSINESS_ADDRESS` (your business postal address) to print in the email footer.
 - [ ] **(you)** Supabase Auth: decide the **Confirm email** toggle; enable leaked-password protection + CAPTCHA before public.
-- [ ] **(you)** `ANTHROPIC_API_KEY` in Vercel — needed for the AI assistant **and** the messaging-assistant feature below.
+- [x] **(you)** `ANTHROPIC_API_KEY` set in Vercel (2026-09-29) — unlocks the AI assistant **and** the messaging-assistant feature below.
+- [ ] **(you)** **Supabase Pro / backups** — Free plan has **no project backups or PITR** (verified in dashboard). A bad migration or accidental delete has no recovery path today; upgrade to Pro **before your first real sign-ups**, not after.
 
 **Needs you to do a real-world test (I fix what it surfaces):**
 - [ ] **(test)** Live sign-up on the domain → send me the email → I verify org isolation.
@@ -133,12 +135,12 @@ Full comparison of our forms/docs/requirements against established AU agency + a
 Deep-dive of the forwarded "vibe coding" reels: legal, security, paywall UX,
 design anti-patterns, Apple App Store, stack. Full detail + real examples +
 current status live in that doc. Net-new prioritised actions:
-- [x] **(build)** **Security headers** in `next.config.ts` — CSP (default-src self; scripts/styles inline-only, no eval in prod; connect/img scoped to `*.supabase.co` + wss; `frame-ancestors 'none'`; `object-src 'none'`), HSTS (2y + includeSubDomains), X-Frame-Options DENY, X-Content-Type-Options nosniff, Referrer-Policy strict-origin-when-cross-origin, Permissions-Policy (camera/mic/geo/topics off), X-DNS-Prefetch-Control. Verified emitted on the running server. Phase-1 CSP keeps `'unsafe-inline'` scripts (Next injects inline bootstrap without nonces); tightening to nonce-based via middleware is a later step.
+- [x] **(build)** **Security headers** in `next.config.ts` — CSP (default-src self; scripts/styles inline-only, no eval in prod; connect/img scoped to `*.supabase.co` + wss; `frame-ancestors 'none'`; `object-src 'none'`), HSTS (2y + includeSubDomains), X-Frame-Options DENY, X-Content-Type-Options nosniff, Referrer-Policy strict-origin-when-cross-origin, Permissions-Policy (camera/mic/geo/topics off), X-DNS-Prefetch-Control. Verified emitted on the running server. Phase-1 CSP keeps `'unsafe-inline'` scripts (Next injects inline bootstrap without nonces); tightening to nonce-based via middleware is a later step. **Verified live on prod (2026-09-29): securityheaders.com grade A**, all headers present; the only note is the expected phase-1 `'unsafe-inline'` on script-src.
 - [ ] **(build/you)** **Confirm no secrets in git history**; rotate anything found.
 - [x] **(build)** **Dependency scanning in CI** — CI runs `npm audit --omit=dev --audit-level=high` (blocking on high/critical in prod deps) + a non-blocking full-tree audit; `.github/dependabot.yml` opens weekly npm + github-actions update PRs (minor/patch grouped). Prod audit currently reports 0 vulns.
 - [x] **(build)** **Self-serve account/data deletion** — Manager (owner) danger zone on the Team page: request deletion (type-org-name confirm) → org marked `deletion_requested_at` + signed out, **30-day grace** with a "Cancel deletion" button (recoverable). Tenants can request deletion of their tenancy data **only once the tenancy has ended** (portal "Your data" card → `portal_request_data_deletion`, gated on `status='ended'`, notifies the manager). Migration `20260929_account_deletion.sql` (org columns + `request_account_deletion`/`cancel_account_deletion`/`portal_request_data_deletion` RPCs + `tenant_data_deletion_requests` table); helpers in `lib/account` (unit-tested).
 - [ ] **(build)** **Deletion purge job** (follow-up to the above) — a scheduled job to hard-delete orgs past the 30-day grace window. Needs an FK-safe ordered delete (or `ON DELETE CASCADE` on org FKs) + storage-object cleanup, run from the daily cron. Not urgent (no org can reach expiry for 30 days) and deliberately deferred rather than ship an untested mass-delete.
-- [ ] **(build)** **Unsubscribe link + sender business address** on non-transactional emails (Spam Act 2003).
+- [x] **(build)** **Unsubscribe link + sender identification** on non-transactional emails (Spam Act 2003). Every email now ends with a **sender-identity footer** (business name, site, optional `EMAIL_BUSINESS_ADDRESS`). Reminder ("notification") emails additionally carry a **self-serve unsubscribe**: an HMAC-signed link (`UNSUBSCRIBE_SECRET`) → public `/unsubscribe` confirm page (POST-only, so mail-client link prefetch can't opt anyone out) → `record_email_unsubscribe`; `/api/email` **skips suppressed recipients** for notification mail via `is_email_suppressed` (transactional mail — rent/notices — is never suppressed). If no secret is set, the footer falls back to a monitored reply-to opt-out. New `email_unsubscribes` table + RPCs (`supabase/migrations/20260929_email_unsubscribes.sql`, applied live); pure helpers `lib/emailFooter` + `lib/unsubscribeToken` (unit-tested). Also fixed a latent bug: the reminder **cron POSTed to `/api/email` with no auth header** (would 401 once configured) — it now sends `Authorization: Bearer <CRON_SECRET>`.
 - [ ] **(build)** **Numeric rate limits** (emails/day, writes/min, uploads/account) + login throttle; **2FA/OTP** for managers (before public).
 - [ ] **(build/you)** **Legal pack**: limitation-of-liability, governing law, indemnification, data-deletion, refund, cookie policy + consent banner; make policies match the real data map; add business details/ABN. Consider Termly/iubenda.
 - [ ] **(build)** **Accessibility pass** (alt text, colour contrast, keyboard nav) — fold into the mobile/empty-state QA (#below).

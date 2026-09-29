@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { brand } from "@/lib/brand";
 import { REMINDER_DAYS } from "@/lib/inspections";
 
 // Daily cron (see vercel.json) that sends inspection reminder emails a month,
@@ -94,17 +93,22 @@ export async function GET(req: Request) {
         const subject = `Reminder: ${insp.kind} inspection in ${days} days — ${address}`;
         const body =
           `This is a reminder that a ${insp.kind} inspection at ${address} is scheduled for ${when} ` +
-          `(in ${days} days).\n\n` +
+          `(in ${days} days).` +
           (portalUrl
-            ? `There's a preparation checklist in your tenant portal:\n${portalUrl}\n\n`
-            : "") +
-          `— ${brand.full}`;
+            ? `\n\nThere's a preparation checklist in your tenant portal:\n${portalUrl}`
+            : "");
         await Promise.all(
           emails.map((to) =>
             fetch(`${origin}/api/email`, {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ to, subject, body, tenancyId: insp.tenancy_id }),
+              headers: {
+                "Content-Type": "application/json",
+                // Authorise as the cron so /api/email doesn't reject the send.
+                Authorization: `Bearer ${cronSecret}`,
+              },
+              // Reminders are non-transactional: they carry an unsubscribe link
+              // and honour opt-outs.
+              body: JSON.stringify({ to, subject, body, tenancyId: insp.tenancy_id, category: "notification" }),
             }).catch(() => {})
           )
         );
