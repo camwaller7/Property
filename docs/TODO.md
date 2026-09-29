@@ -114,6 +114,7 @@ Everything needed before other people create accounts and pay.
 - [ ] **(build)** Empty states, error states, and **mobile/responsive QA** across every page + the tenant portal.
 
 ### Quality & reliability
+- [x] **(build)** **RLS tenant-delete fix** — `condition_reports`, `rental_history` (PR #18) and `inspection_reports` (PR #19) each had a single `FOR ALL` policy whose `USING` admitted the tenant/approved-share reader but whose `WITH CHECK` was org-only. Postgres checks only `USING` for `DELETE`, so a signed-in tenant could delete their own rows via the Supabase client (e.g. erase adverse rental history). Split each into an org-scoped `FOR ALL` + a read-only `SELECT` policy for the tenant/share paths. Applied live + `supabase/migrations/20260929_rls_tenant_readonly_fix.sql`.
 - [x] **(build)** **Automated tests + CI** — Vitest unit suite (66 tests) over the pure business logic: SA inspection notice-window rules, the 8-state jurisdiction/bond-cap table, GST + financial-year maths, recurring-bill date projection, portfolio finance rollups, and the password policy. `gstComponent`/`financialYear` extracted to `src/lib/costs.ts` so they're testable. CI (`.github/workflows/ci.yml`) now runs **lint → typecheck → unit tests → build** on every PR and push to `main`. Next: component/integration tests and a smoke test of the token-guarded portal RPCs.
 
 ### Documents & requirements audit (see `docs/DOCUMENT-AUDIT.md`, 2026-09-28)
