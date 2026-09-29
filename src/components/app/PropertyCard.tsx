@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import Badge from "@/components/ui/Badge";
 import { Field } from "./Field";
 import PropertyPhotos from "./PropertyPhotos";
@@ -114,9 +115,14 @@ export default function PropertyCard({
             Edit property details
           </button>
 
-          <h4 className="mb-2 mt-6 text-sm font-semibold uppercase tracking-wide text-muted">
-            Rent ledger
-          </h4>
+          <div className="mb-2 mt-6 flex items-center justify-between">
+            <h4 className="text-sm font-semibold uppercase tracking-wide text-muted">
+              Rent ledger
+            </h4>
+            <Link href={`/app/rent-ledger/${p.id}`} className="text-xs font-medium text-accent hover:underline">
+              View full ledger →
+            </Link>
+          </div>
           <div className="overflow-x-auto rounded-xl border border-border">
             <table className="w-full text-sm">
               <thead>
