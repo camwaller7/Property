@@ -133,7 +133,7 @@ Full comparison of our forms/docs/requirements against established AU agency + a
 Deep-dive of the forwarded "vibe coding" reels: legal, security, paywall UX,
 design anti-patterns, Apple App Store, stack. Full detail + real examples +
 current status live in that doc. Net-new prioritised actions:
-- [ ] **(build)** **Security headers** in `next.config.ts` — CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy (quick, high-value; also mitigates the localStorage-session XSS risk).
+- [x] **(build)** **Security headers** in `next.config.ts` — CSP (default-src self; scripts/styles inline-only, no eval in prod; connect/img scoped to `*.supabase.co` + wss; `frame-ancestors 'none'`; `object-src 'none'`), HSTS (2y + includeSubDomains), X-Frame-Options DENY, X-Content-Type-Options nosniff, Referrer-Policy strict-origin-when-cross-origin, Permissions-Policy (camera/mic/geo/topics off), X-DNS-Prefetch-Control. Verified emitted on the running server. Phase-1 CSP keeps `'unsafe-inline'` scripts (Next injects inline bootstrap without nonces); tightening to nonce-based via middleware is a later step.
 - [ ] **(build/you)** **Confirm no secrets in git history**; rotate anything found.
 - [ ] **(build)** **Dependency scanning in CI** (`npm audit` / Dependabot).
 - [ ] **(build)** **Self-serve account/data deletion** request + documented retention (also an Apple requirement if we ever ship iOS).
