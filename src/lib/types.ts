@@ -375,6 +375,39 @@ export interface Inspection {
   created_at?: string;
 }
 
+// Room-by-room routine inspection report. `areas` is an ordered list of
+// { area, condition, notes, photos[] } (see lib/inspectionReport). Finalising
+// it (finalised_at) makes it visible to the tenant in their portal.
+export interface InspectionReportArea {
+  area: string;
+  condition: string; // AreaCondition
+  notes: string;
+  photos: string[]; // private storage paths (inspection-reports bucket)
+}
+
+export interface InspectionReport {
+  id: string;
+  org_id?: string | null;
+  inspection_id: string | null;
+  tenancy_id: string | null;
+  property_id: string | null;
+  kind: string; // routine | entry | exit
+  inspected_on: string | null;
+  inspector_name: string | null;
+  overall_condition: string | null;
+  summary: string | null;
+  follow_up: string | null;
+  areas: InspectionReportArea[];
+  finalised_at: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export type InspectionReportInput = Omit<
+  InspectionReport,
+  "id" | "org_id" | "created_at" | "updated_at"
+>;
+
 // Editable subset used by the add/edit property form.
 export type PropertyInput = Omit<Property, "id" | "created_at">;
 
