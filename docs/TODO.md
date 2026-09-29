@@ -128,6 +128,23 @@ Full comparison of our forms/docs/requirements against established AU agency + a
 - [ ] **(build) P2 — Arrears workflow** (reminder → breach → notice timeline).
 - [ ] **(build) P3 — Agency-grade owner side** — management agreement, owner statements/disbursements, landlord insurance record, key register, disclosure statements.
 
+### Launch review — reel notes (see `docs/LAUNCH-REVIEW.md`, 2026-09-29)
+Deep-dive of the forwarded "vibe coding" reels: legal, security, paywall UX,
+design anti-patterns, Apple App Store, stack. Full detail + real examples +
+current status live in that doc. Net-new prioritised actions:
+- [ ] **(build)** **Security headers** in `next.config.ts` — CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy (quick, high-value; also mitigates the localStorage-session XSS risk).
+- [ ] **(build/you)** **Confirm no secrets in git history**; rotate anything found.
+- [ ] **(build)** **Dependency scanning in CI** (`npm audit` / Dependabot).
+- [ ] **(build)** **Self-serve account/data deletion** request + documented retention (also an Apple requirement if we ever ship iOS).
+- [ ] **(build)** **Unsubscribe link + sender business address** on non-transactional emails (Spam Act 2003).
+- [ ] **(build)** **Numeric rate limits** (emails/day, writes/min, uploads/account) + login throttle; **2FA/OTP** for managers (before public).
+- [ ] **(build/you)** **Legal pack**: limitation-of-liability, governing law, indemnification, data-deletion, refund, cookie policy + consent banner; make policies match the real data map; add business details/ABN. Consider Termly/iubenda.
+- [ ] **(build)** **Accessibility pass** (alt text, colour contrast, keyboard nav) — fold into the mobile/empty-state QA (#below).
+- [ ] **(build)** **Paywall UX revamp** when billing is live — annual = primary/green with discount, trial gated to annual, lead with the outcome + savings, sell outcomes not features, per-line standalone cost, real reviews, 3-screen scrollable paywall, a polished checkout screen.
+- [ ] **(build/you)** **Design pass vs. anti-patterns** + install design skills (Emil Kowalski / impeccable design / taste) + connect Figma MCP; ship the **logo reveal** (see below).
+- [ ] **(you)** **Cyber liability insurance**; **read every stack's ToS** (Supabase/Vercel/Stripe/Resend/analytics) — feeds the privacy policy.
+- [ ] **(build, if iOS)** Apple App Store readiness — IAP for digital subs, Sign in with Apple parity, in-app account deletion (incl. the SIWA path), no broken demo/iPad UI/screenshots, report + restore-purchases features. N/A while web-only.
+
 ### Growth & ops
 - [ ] **(build)** Marketing / lead-capture site (public front to acquire clients).
 - [ ] **(build)** Tenant **scheduled email reminders** (rent due) — server-side scheduled send (pg_cron/edge + email).
