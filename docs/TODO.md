@@ -135,7 +135,7 @@ design anti-patterns, Apple App Store, stack. Full detail + real examples +
 current status live in that doc. Net-new prioritised actions:
 - [x] **(build)** **Security headers** in `next.config.ts` — CSP (default-src self; scripts/styles inline-only, no eval in prod; connect/img scoped to `*.supabase.co` + wss; `frame-ancestors 'none'`; `object-src 'none'`), HSTS (2y + includeSubDomains), X-Frame-Options DENY, X-Content-Type-Options nosniff, Referrer-Policy strict-origin-when-cross-origin, Permissions-Policy (camera/mic/geo/topics off), X-DNS-Prefetch-Control. Verified emitted on the running server. Phase-1 CSP keeps `'unsafe-inline'` scripts (Next injects inline bootstrap without nonces); tightening to nonce-based via middleware is a later step.
 - [ ] **(build/you)** **Confirm no secrets in git history**; rotate anything found.
-- [ ] **(build)** **Dependency scanning in CI** (`npm audit` / Dependabot).
+- [x] **(build)** **Dependency scanning in CI** — CI runs `npm audit --omit=dev --audit-level=high` (blocking on high/critical in prod deps) + a non-blocking full-tree audit; `.github/dependabot.yml` opens weekly npm + github-actions update PRs (minor/patch grouped). Prod audit currently reports 0 vulns.
 - [ ] **(build)** **Self-serve account/data deletion** request + documented retention (also an Apple requirement if we ever ship iOS).
 - [ ] **(build)** **Unsubscribe link + sender business address** on non-transactional emails (Spam Act 2003).
 - [ ] **(build)** **Numeric rate limits** (emails/day, writes/min, uploads/account) + login throttle; **2FA/OTP** for managers (before public).
