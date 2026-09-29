@@ -208,6 +208,8 @@ export default function PortalPage() {
 
         <RentalHistoryPanel />
 
+        <PortalDataDeletion token={token} />
+
         <Card title="Your property manager">
           <div className="text-sm">
             <div className="font-medium">{contact?.org || brand.full}</div>
@@ -788,6 +790,64 @@ function PortalConditionReports({
         ))}
       </ul>
       {err && <p className="mt-2 text-sm text-bad">{err}</p>}
+    </Card>
+  );
+}
+
+function PortalDataDeletion({ token }: { token: string }) {
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const [err, setErr] = useState("");
+  const [open, setOpen] = useState(false);
+
+  async function request() {
+    setErr("");
+    setBusy(true);
+    const { data, error } = await supabase.rpc("portal_request_data_deletion", {
+      p_token: token,
+      p_note: note,
+    });
+    setBusy(false);
+    const res = data as { error?: string; ok?: boolean } | null;
+    if (error) return setErr(error.message);
+    if (res?.error) return setErr(res.error === "tenancy_active" ? "Your tenancy is still active." : "Couldn't send the request.");
+    setDone(true);
+  }
+
+  return (
+    <Card title="Your data">
+      <p className="text-sm text-muted">
+        Now that your tenancy has ended, you can ask your manager to delete the personal data held
+        for this tenancy. They may need to keep some records to meet legal obligations (e.g. bond and
+        tenancy history), and will action your request accordingly.
+      </p>
+      {done ? (
+        <p className="mt-3 text-sm text-good">Request sent — your manager has been notified. ✓</p>
+      ) : !open ? (
+        <button
+          onClick={() => setOpen(true)}
+          className="mt-3 rounded-full border border-border px-5 py-2 text-sm font-medium hover:bg-surface"
+        >
+          Request data deletion
+        </button>
+      ) : (
+        <div className="mt-3 space-y-2">
+          <Textarea
+            label="Anything to add (optional)"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+          />
+          <button
+            onClick={request}
+            disabled={busy}
+            className="rounded-full bg-foreground px-5 py-2 text-sm font-medium text-background hover:opacity-80 disabled:opacity-50"
+          >
+            {busy ? "Sending…" : "Send request"}
+          </button>
+          {err && <p className="text-sm text-bad">{err}</p>}
+        </div>
+      )}
     </Card>
   );
 }

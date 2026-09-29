@@ -1,13 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Badge from "@/components/ui/Badge";
 import { Field, Select } from "@/components/app/Field";
 import { usePortfolio } from "@/lib/portfolio";
+import { supabase } from "@/lib/supabase";
+import { deletionScheduledDate, deletionDaysLeft, DELETION_GRACE_DAYS } from "@/lib/account";
+import { fmtDate } from "@/lib/format";
 import type { OrgRole } from "@/lib/types";
 
 export default function TeamPage() {
-  const { org, members, myRole, userId, loading, updateOrgName, createInvite, removeMember } =
+  const { org, members, myRole, userId, loading, updateOrgName, createInvite, removeMember, requestAccountDeletion, cancelAccountDeletion } =
     usePortfolio();
 
   const [name, setName] = useState("");
@@ -17,8 +21,41 @@ export default function TeamPage() {
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
 
+  const router = useRouter();
   const isAdmin = myRole === "owner" || myRole === "admin";
+  const isOwner = myRole === "owner";
   const origin = typeof window !== "undefined" ? window.location.origin : "";
+
+  const [delConfirm, setDelConfirm] = useState("");
+  const [delBusy, setDelBusy] = useState(false);
+  const [delErr, setDelErr] = useState("");
+
+  async function requestDeletion() {
+    setDelErr("");
+    if (!org) return;
+    if (delConfirm.trim() !== org.name) {
+      setDelErr("Type your organisation name exactly to confirm.");
+      return;
+    }
+    setDelBusy(true);
+    const res = await requestAccountDeletion();
+    if (res.error) {
+      setDelBusy(false);
+      setDelErr(res.error);
+      return;
+    }
+    // Signed out so the account goes dormant during the grace window.
+    await supabase.auth.signOut();
+    router.push("/");
+  }
+
+  async function cancelDeletion() {
+    setDelErr("");
+    setDelBusy(true);
+    const res = await cancelAccountDeletion();
+    setDelBusy(false);
+    if (res.error) setDelErr(res.error);
+  }
 
   if (loading) return <p className="text-muted">Loading…</p>;
   if (!org) return <p className="text-muted">No organization found.</p>;
@@ -141,6 +178,54 @@ export default function TeamPage() {
       )}
 
       {error && <p className="mt-4 text-sm text-bad">{error}</p>}
+
+      {/* Danger zone — owner-only account/data deletion */}
+      {isOwner && (
+        <section className="mt-8 rounded-2xl border border-bad/40 p-5">
+          <h2 className="mb-1 text-lg font-semibold tracking-tight text-bad">Delete account</h2>
+          {org.deletion_requested_at ? (
+            <div className="space-y-3">
+              <p className="text-sm">
+                This account is <strong>scheduled for deletion</strong> on{" "}
+                <strong>{fmtDate(deletionScheduledDate(org.deletion_requested_at))}</strong>
+                {" — "}
+                {deletionDaysLeft(org.deletion_requested_at)} day(s) left to cancel. Your data is
+                retained and recoverable until then.
+              </p>
+              <button
+                onClick={cancelDeletion}
+                disabled={delBusy}
+                className="rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-background hover:opacity-80 disabled:opacity-50"
+              >
+                {delBusy ? "Working…" : "Cancel deletion"}
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm text-muted">
+                Requesting deletion signs you out and marks the organisation for removal. Your data
+                is kept for a <strong>{DELETION_GRACE_DAYS}-day grace period</strong> (you can cancel
+                by signing back in), after which it is permanently deleted. This affects every
+                property, tenancy, document and team member.
+              </p>
+              <Field
+                label={`Type "${org.name}" to confirm`}
+                value={delConfirm}
+                onChange={(e) => setDelConfirm(e.target.value)}
+                className="max-w-sm"
+              />
+              <button
+                onClick={requestDeletion}
+                disabled={delBusy || delConfirm.trim() !== org.name}
+                className="rounded-full border border-bad px-5 py-2.5 text-sm font-medium text-bad hover:bg-bad-surface disabled:opacity-40"
+              >
+                {delBusy ? "Working…" : "Request account deletion"}
+              </button>
+            </div>
+          )}
+          {delErr && <p className="mt-2 text-sm text-bad">{delErr}</p>}
+        </section>
+      )}
     </div>
   );
 }
