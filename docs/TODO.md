@@ -110,7 +110,7 @@ Everything needed before other people create accounts and pay.
 - [ ] **(you)** GST handling/registration once turnover approaches A$75k; decide GST-inclusive pricing display.
 
 ### Content & correctness
-- [ ] **(you/build)** Verify **all 8 states/territories'** bond caps, notice periods, tribunal + authority links against official sources.
+- [x] **(build)** Verified **all 8 states/territories'** bond caps + routine-inspection notice/frequency against each authority's published guidance (Sep 2026, incl. the 2024 QLD & WA reforms). Fixes: QLD bond note (the >$700/week exemption was abolished 30 Sep 2024 — now a flat 4 weeks); VIC bond threshold set to $900 with correct "one month / reasonable above $900" wording; WA note now states the $1,200 cap threshold + $350 pet bond; **TAS routine-inspection notice corrected to 24 hours (was wrongly 7–14 days)**; added an accurate per-year inspection cap for every state (NSW/QLD/SA/WA/NT = 4, VIC/ACT = 2) and made `maxNoticeDays` nullable since only SA sets a legislated notice *window* (7–28 days). These notes flow into the generated tenancy agreement. Still guidance, not legal advice — authority links included for confirmation.
 - [ ] **(build)** Empty states, error states, and **mobile/responsive QA** across every page + the tenant portal.
 
 ### Quality & reliability

@@ -4,6 +4,11 @@
 // IMPORTANT: this is guidance, not legal advice. Authority links point to the
 // official department; bond caps and notice periods are summarised and MUST be
 // confirmed against the linked authority before relying on them — rules change.
+//
+// Bond caps and routine-inspection notice/frequency rules last verified against
+// each authority's published guidance in September 2026 (reflecting the 2024
+// QLD and WA rental reforms). Where a state sets only a minimum notice period,
+// maxNoticeDays is null.
 
 export type StateCode = "NSW" | "VIC" | "QLD" | "SA" | "WA" | "TAS" | "ACT" | "NT";
 
@@ -23,8 +28,16 @@ export interface Jurisdiction {
   // weekly-rent threshold, else Y". null weeks => rule doesn't reduce to a
   // simple week multiple (confirm with the authority).
   bond: { weeks: number | null; threshold?: number; altWeeks?: number; note?: string };
-  // Routine inspection notice window (days) — general guidance.
-  inspection: { minNoticeDays: number; maxNoticeDays: number; note?: string };
+  // Routine inspection rules — general guidance, verified against each
+  // authority Sep 2026. Most states set only a *minimum* notice; only SA sets a
+  // notice window, so `maxNoticeDays` is null elsewhere. `maxPerYear` is the cap
+  // on routine inspections per 12 months.
+  inspection: {
+    minNoticeDays: number;
+    maxNoticeDays: number | null;
+    maxPerYear: number | null;
+    note?: string;
+  };
 }
 
 export const JURISDICTIONS: Record<StateCode, Jurisdiction> = {
@@ -36,7 +49,12 @@ export const JURISDICTIONS: Record<StateCode, Jurisdiction> = {
     tribunal: { name: "NCAT", url: "https://www.ncat.nsw.gov.au" },
     tenantInfo: { name: "New tenant checklist (Fair Trading)", url: "https://www.fairtrading.nsw.gov.au" },
     bond: { weeks: 4 },
-    inspection: { minNoticeDays: 7, maxNoticeDays: 14 },
+    inspection: {
+      minNoticeDays: 7,
+      maxNoticeDays: null,
+      maxPerYear: 4,
+      note: "At least 7 days' written notice; routine inspections no more than 4 times in any 12-month period.",
+    },
   },
   VIC: {
     code: "VIC",
@@ -45,8 +63,13 @@ export const JURISDICTIONS: Record<StateCode, Jurisdiction> = {
     bonds: { name: "Residential Tenancies Bond Authority (RTBA)", url: "https://rentalbonds.vic.gov.au" },
     tribunal: { name: "VCAT", url: "https://www.vcat.vic.gov.au" },
     tenantInfo: { name: "Renting a home: a guide (CAV)", url: "https://www.consumer.vic.gov.au/housing/renting" },
-    bond: { weeks: null, note: "Generally one month's rent where weekly rent is at or below the prescribed threshold — confirm with the RTBA." },
-    inspection: { minNoticeDays: 7, maxNoticeDays: 14 },
+    bond: { weeks: null, threshold: 900, note: "Up to one month's rent where the weekly rent is $900 or less. Above $900 there is no fixed cap, but the amount must be reasonable and VCAT can approve more — confirm with the RTBA." },
+    inspection: {
+      minNoticeDays: 7,
+      maxNoticeDays: null,
+      maxPerYear: 2,
+      note: "At least 7 days' written notice; general (routine) inspections no more than once every 6 months, and not within the first 3 months of the tenancy.",
+    },
   },
   QLD: {
     code: "QLD",
@@ -55,8 +78,13 @@ export const JURISDICTIONS: Record<StateCode, Jurisdiction> = {
     bonds: { name: "RTA Bonds", url: "https://www.rta.qld.gov.au/bonds" },
     tribunal: { name: "QCAT", url: "https://www.qcat.qld.gov.au" },
     tenantInfo: { name: "Pocket guide for tenants (RTA)", url: "https://www.rta.qld.gov.au" },
-    bond: { weeks: 4, note: "Where weekly rent is above the prescribed threshold the maximum may differ — confirm with the RTA." },
-    inspection: { minNoticeDays: 7, maxNoticeDays: 14 },
+    bond: { weeks: 4, note: "Up to 4 weeks' rent for all general tenancies (the former exemption for rent above $700/week was abolished on 30 September 2024)." },
+    inspection: {
+      minNoticeDays: 7,
+      maxNoticeDays: null,
+      maxPerYear: 4,
+      note: "At least 7 days' written entry notice; routine inspections no more than once every 3 months, and not within the first 3 months of the tenancy.",
+    },
   },
   SA: {
     code: "SA",
@@ -66,7 +94,12 @@ export const JURISDICTIONS: Record<StateCode, Jurisdiction> = {
     tribunal: { name: "SACAT", url: "https://www.sacat.sa.gov.au" },
     tenantInfo: { name: "Information for tenants (CBS)", url: "https://www.cbs.sa.gov.au/renting-a-home" },
     bond: { weeks: 4, threshold: 800, altWeeks: 6, note: "Up to 4 weeks' rent where weekly rent is $800 or less, otherwise up to 6 weeks." },
-    inspection: { minNoticeDays: 7, maxNoticeDays: 28, note: "Routine inspections: up to 4 per year, 8am–8pm, not on Sundays or public holidays, max 2 hours." },
+    inspection: {
+      minNoticeDays: 7,
+      maxNoticeDays: 28,
+      maxPerYear: 4,
+      note: "Written notice 7–28 days before entry; routine inspections up to 4 per year, 8am–8pm, not on Sundays or public holidays, max 2 hours.",
+    },
   },
   WA: {
     code: "WA",
@@ -75,8 +108,13 @@ export const JURISDICTIONS: Record<StateCode, Jurisdiction> = {
     bonds: { name: "Bond Administrator (WA)", url: "https://www.commerce.wa.gov.au/consumer-protection/renting-home" },
     tribunal: { name: "Magistrates Court of WA", url: "https://www.magistratescourt.wa.gov.au" },
     tenantInfo: { name: "Renting a home (Consumer Protection)", url: "https://www.commerce.wa.gov.au/consumer-protection/renting-home" },
-    bond: { weeks: 4, note: "Plus a pet bond where applicable — confirm with Consumer Protection." },
-    inspection: { minNoticeDays: 7, maxNoticeDays: 14 },
+    bond: { weeks: 4, note: "Up to 4 weeks' rent where the weekly rent is $1,200 or less (above $1,200 the bond is not capped), plus a pet bond of up to $350 where applicable. Confirm with Consumer Protection." },
+    inspection: {
+      minNoticeDays: 7,
+      maxNoticeDays: 14,
+      maxPerYear: 4,
+      note: "Between 7 and 14 days' written notice; routine inspections no more than 4 times in any 12-month period.",
+    },
   },
   TAS: {
     code: "TAS",
@@ -86,7 +124,12 @@ export const JURISDICTIONS: Record<StateCode, Jurisdiction> = {
     tribunal: { name: "Residential Tenancy Commissioner / Magistrates Court", url: "https://www.cbos.tas.gov.au" },
     tenantInfo: { name: "Renting information (CBOS)", url: "https://www.cbos.tas.gov.au/topics/housing/renting" },
     bond: { weeks: 4 },
-    inspection: { minNoticeDays: 7, maxNoticeDays: 14 },
+    inspection: {
+      minNoticeDays: 1,
+      maxNoticeDays: null,
+      maxPerYear: 4,
+      note: "At least 24 hours' written notice; routine inspections no more than once every 3 months.",
+    },
   },
   ACT: {
     code: "ACT",
@@ -96,7 +139,12 @@ export const JURISDICTIONS: Record<StateCode, Jurisdiction> = {
     tribunal: { name: "ACAT", url: "https://www.acat.act.gov.au" },
     tenantInfo: { name: "Renting a home (Access Canberra)", url: "https://www.accesscanberra.act.gov.au" },
     bond: { weeks: 4 },
-    inspection: { minNoticeDays: 7, maxNoticeDays: 14 },
+    inspection: {
+      minNoticeDays: 7,
+      maxNoticeDays: null,
+      maxPerYear: 2,
+      note: "At least 7 days' written notice; routine inspections no more than twice in any 12-month period (extra inspections in the first and last month of the tenancy don't count toward the cap).",
+    },
   },
   NT: {
     code: "NT",
@@ -106,7 +154,12 @@ export const JURISDICTIONS: Record<StateCode, Jurisdiction> = {
     tribunal: { name: "NTCAT", url: "https://ntcat.nt.gov.au" },
     tenantInfo: { name: "Renting information (NT Consumer Affairs)", url: "https://consumeraffairs.nt.gov.au" },
     bond: { weeks: 4 },
-    inspection: { minNoticeDays: 7, maxNoticeDays: 14 },
+    inspection: {
+      minNoticeDays: 7,
+      maxNoticeDays: null,
+      maxPerYear: 4,
+      note: "At least 7 days' written notice; routine inspections no more than once every 3 months.",
+    },
   },
 };
 
