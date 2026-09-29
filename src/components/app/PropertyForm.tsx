@@ -34,6 +34,9 @@ export default function PropertyForm({
   function setNum(key: keyof PropertyInput, value: string) {
     setForm((f) => ({ ...f, [key]: value === "" ? null : Number(value) }));
   }
+  function setBool(key: keyof PropertyInput, value: boolean) {
+    setForm((f) => ({ ...f, [key]: value }));
+  }
 
   async function submit() {
     if (!form.address || !String(form.address).trim()) {
@@ -127,6 +130,38 @@ export default function PropertyForm({
           value={form.lender ?? ""}
           onChange={(e) => setText("lender", e.target.value)}
         />
+      </div>
+
+      {/* Landlord legal identity — goes on the tenancy agreement. */}
+      <h3 className="mt-6 text-sm font-semibold uppercase tracking-wide text-muted">Landlord / owner</h3>
+      <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field
+          label="Landlord legal name"
+          value={form.landlord_name ?? ""}
+          onChange={(e) => setText("landlord_name", e.target.value)}
+          placeholder="Full legal name or entity"
+        />
+        <Field
+          label="Service address for notices"
+          value={form.landlord_service_address ?? ""}
+          onChange={(e) => setText("landlord_service_address", e.target.value)}
+          placeholder="Address where the tenant can serve notices"
+        />
+      </div>
+
+      {/* Property attributes that gate start-of-tenancy hand-over. */}
+      <h3 className="mt-6 text-sm font-semibold uppercase tracking-wide text-muted">Property attributes</h3>
+      <div className="mt-3 space-y-2">
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={form.has_pool} onChange={(e) => setBool("has_pool", e.target.checked)} />
+          Has a swimming pool / spa
+          <span className="text-xs text-muted">— a compliance certificate must be given to the tenant; track the check under Compliance.</span>
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={form.is_strata} onChange={(e) => setBool("is_strata", e.target.checked)} />
+          Strata / community title
+          <span className="text-xs text-muted">— the by-laws must be given to the tenant (share them via Documents).</span>
+        </label>
       </div>
 
       {error && <p className="mt-4 text-sm text-bad">{error}</p>}

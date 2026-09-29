@@ -16,6 +16,12 @@ export interface Property {
   loan_balance: number | null;
   lender: string | null;
   state: string | null; // NSW VIC QLD SA WA TAS ACT NT
+  // Landlord legal identity (goes on the agreement; a service address for
+  // notices is a legal must) and property attributes that gate hand-over.
+  landlord_name: string | null;
+  landlord_service_address: string | null;
+  has_pool: boolean;
+  is_strata: boolean;
   created_at?: string;
 }
 
@@ -80,6 +86,19 @@ export interface RentalHistory {
   bond_amount: number | null;
   conduct_note: string | null;
   created_at?: string;
+}
+
+// A tenant's consent record letting one property-manager org read their
+// portable rental history. Created by a manager's request, approved by the
+// tenant in their portal, and revocable.
+export type ShareStatus = "pending" | "approved" | "declined" | "revoked";
+
+export interface RentalHistoryShare {
+  id: string;
+  status: ShareStatus;
+  created_at?: string;
+  responded_at?: string | null;
+  org_name?: string | null; // requesting org, resolved for the tenant view
 }
 
 // A per-person document/ID stored against a lease tenant (private bucket).
@@ -254,6 +273,13 @@ export interface PropertyCost {
   amount: number | null;
   spent_on: string | null;
   receipt_path: string | null;
+  // Whether `amount` is GST-inclusive (AU: GST component = amount / 11). Many
+  // outgoings (rates, water, land tax, interest) are GST-free, so this is a
+  // per-cost flag rather than assumed on every line.
+  includes_gst?: boolean;
+  // The actual GST captured on the invoice. `amount` is the total (inc GST);
+  // gst_amount is the GST portion. Defaults to amount/11 in the UI but editable.
+  gst_amount?: number | null;
   created_at?: string;
 }
 
@@ -284,6 +310,52 @@ export interface PropertyBill {
   payer: "landlord" | "tenant" | string;
   notes: string | null;
   active: boolean;
+  created_at?: string;
+}
+
+// Recurring safety-compliance obligations per property (smoke alarms, gas,
+// electrical, pool/spa fence, corded blinds, minimum standards). Landlord data;
+// each has a cadence (interval_months), a last-done date and a computed next-due.
+export type ComplianceKind =
+  | "smoke_alarm"
+  | "gas"
+  | "electrical"
+  | "pool"
+  | "blind_cords"
+  | "min_standards"
+  | "other";
+
+export interface ComplianceItem {
+  id: string;
+  org_id?: string | null;
+  property_id: string | null;
+  kind: ComplianceKind | string;
+  label: string | null;
+  provider: string | null;
+  last_done: string | null;
+  interval_months: number;
+  next_due: string | null;
+  certificate_path: string | null;
+  notes: string | null;
+  active: boolean;
+  created_at?: string;
+}
+
+// A condition report issued to a tenant that they counter-sign in the portal.
+// The document a bond claim rests on — issued_at + acknowledged_at track the
+// hand-over and the tenant's acknowledgement.
+export interface ConditionReport {
+  id: string;
+  org_id?: string | null;
+  tenancy_id: string | null;
+  property_id: string | null;
+  kind: "ingoing" | "outgoing" | string;
+  document_path: string | null;
+  notes: string | null;
+  issued_at: string;
+  acknowledged_at: string | null;
+  acknowledged_name: string | null;
+  tenant_comment: string | null;
   created_at?: string;
 }
 
@@ -318,4 +390,8 @@ export const emptyProperty: PropertyInput = {
   loan_balance: null,
   lender: "",
   state: null,
+  landlord_name: null,
+  landlord_service_address: null,
+  has_pool: false,
+  is_strata: false,
 };

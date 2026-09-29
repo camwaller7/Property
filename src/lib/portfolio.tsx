@@ -28,6 +28,8 @@ import type {
   PropertyCost,
   PropertyInput,
   PropertyBill,
+  ComplianceItem,
+  ConditionReport,
   PropertyPhoto,
   Tenancy,
   TenantApplication,
@@ -55,6 +57,7 @@ export type ResourceInput = Omit<PortalResource, "id" | "created_at">;
 export type PropertyCostInput = Omit<PropertyCost, "id" | "org_id" | "created_at">;
 export type PropertyPhotoInput = Omit<PropertyPhoto, "id" | "org_id" | "created_at">;
 export type PropertyBillInput = Omit<PropertyBill, "id" | "org_id" | "created_at">;
+export type ComplianceItemInput = Omit<ComplianceItem, "id" | "org_id" | "created_at">;
 
 interface PortfolioContextValue {
   properties: Property[];
@@ -69,6 +72,8 @@ interface PortfolioContextValue {
   propertyCosts: PropertyCost[];
   propertyPhotos: PropertyPhoto[];
   propertyBills: PropertyBill[];
+  complianceItems: ComplianceItem[];
+  conditionReports: ConditionReport[];
   notifications: AppNotification[];
   unreadCount: number;
   org: Organization | null;
@@ -109,6 +114,17 @@ interface PortfolioContextValue {
     people?: LeaseTenantDraft[]
   ) => Promise<{ error?: string }>;
   endTenancy: (tenancyId: string, conductNote?: string) => Promise<{ error?: string }>;
+  transferTenancy: (
+    tenancyId: string,
+    input: {
+      newPropertyId: string;
+      moveInDate?: string | null;
+      leaseStart?: string | null;
+      leaseEnd?: string | null;
+      weeklyRent?: number | null;
+      conductNote?: string;
+    }
+  ) => Promise<{ error?: string; newTenancyId?: string }>;
   setOnboarding: (tenancyId: string, items: OnboardingItem[]) => Promise<{ error?: string }>;
   saveInspection: (data: InspectionInput, id?: string) => Promise<{ error?: string }>;
   createApplication: (tenancyId: string) => Promise<{ token?: string; error?: string }>;
@@ -123,6 +139,16 @@ interface PortfolioContextValue {
   deletePropertyPhoto: (id: string, path: string) => Promise<{ error?: string }>;
   addPropertyBill: (data: PropertyBillInput) => Promise<{ error?: string }>;
   deletePropertyBill: (id: string) => Promise<{ error?: string }>;
+  saveComplianceItem: (data: ComplianceItemInput, id?: string) => Promise<{ error?: string }>;
+  deleteComplianceItem: (id: string) => Promise<{ error?: string }>;
+  issueConditionReport: (input: {
+    tenancyId: string;
+    propertyId: string | null;
+    kind: "ingoing" | "outgoing";
+    notes?: string | null;
+    file?: File | null;
+  }) => Promise<{ error?: string }>;
+  deleteConditionReport: (id: string) => Promise<{ error?: string }>;
   addTenantDocument: (leaseTenantId: string, doc: TenantDocument) => Promise<{ error?: string }>;
   removeTenantDocument: (leaseTenantId: string, doc: TenantDocument) => Promise<{ error?: string }>;
 }
@@ -142,6 +168,8 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   const [propertyCosts, setPropertyCosts] = useState<PropertyCost[]>([]);
   const [propertyPhotos, setPropertyPhotos] = useState<PropertyPhoto[]>([]);
   const [propertyBills, setPropertyBills] = useState<PropertyBill[]>([]);
+  const [complianceItems, setComplianceItems] = useState<ComplianceItem[]>([]);
+  const [conditionReports, setConditionReports] = useState<ConditionReport[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [org, setOrg] = useState<Organization | null>(null);
   const [members, setMembers] = useState<OrgMember[]>([]);
@@ -226,6 +254,18 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       .select("*")
       .order("next_due");
     setPropertyBills((bills as PropertyBill[]) || []);
+
+    const { data: compliance } = await supabase
+      .from("compliance_items")
+      .select("*")
+      .order("next_due");
+    setComplianceItems((compliance as ComplianceItem[]) || []);
+
+    const { data: condReports } = await supabase
+      .from("condition_reports")
+      .select("*")
+      .order("issued_at", { ascending: false });
+    setConditionReports((condReports as ConditionReport[]) || []);
 
     const { data: notifs } = await supabase
       .from("notifications")
@@ -466,6 +506,48 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       return {};
     },
     [tenancies, properties, reload]
+  );
+
+  // Transfer a tenant to another property in the same portfolio. One atomic
+  // RPC: creates a fresh live tenancy on the target property carrying the
+  // tenant's identity + people/documents across, re-points their portal login,
+  // and ends the old tenancy (with a rental-history snapshot). No re-application.
+  const transferTenancy = useCallback(
+    async (
+      tenancyId: string,
+      input: {
+        newPropertyId: string;
+        moveInDate?: string | null;
+        leaseStart?: string | null;
+        leaseEnd?: string | null;
+        weeklyRent?: number | null;
+        conductNote?: string;
+      }
+    ) => {
+      const { data, error } = await supabase.rpc("transfer_tenancy", {
+        p_tenancy_id: tenancyId,
+        p_new_property_id: input.newPropertyId,
+        p_move_in_date: input.moveInDate ?? null,
+        p_lease_start: input.leaseStart ?? null,
+        p_lease_end: input.leaseEnd ?? null,
+        p_weekly_rent: input.weeklyRent ?? null,
+        p_conduct_note: input.conductNote ?? null,
+      });
+      if (error) return { error: error.message };
+      const result = (data ?? {}) as { error?: string; new_tenancy_id?: string };
+      if (result.error) {
+        const messages: Record<string, string> = {
+          tenancy_not_found: "That tenancy no longer exists.",
+          not_authorised: "You don't have access to that tenancy.",
+          same_property: "Pick a different property to transfer to.",
+          target_not_in_portfolio: "The target property isn't in your portfolio.",
+        };
+        return { error: messages[result.error] ?? result.error };
+      }
+      await reload();
+      return { newTenancyId: result.new_tenancy_id };
+    },
+    [reload]
   );
 
   const setOnboarding = useCallback(
@@ -808,6 +890,69 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     [reload]
   );
 
+  const saveComplianceItem = useCallback(
+    async (data: ComplianceItemInput, id?: string) => {
+      const res = id
+        ? await supabase.from("compliance_items").update(data).eq("id", id)
+        : await supabase.from("compliance_items").insert(data);
+      if (res.error) return { error: res.error.message };
+      await reload();
+      return {};
+    },
+    [reload]
+  );
+
+  const deleteComplianceItem = useCallback(
+    async (id: string) => {
+      const res = await supabase.from("compliance_items").delete().eq("id", id);
+      if (res.error) return { error: res.error.message };
+      await reload();
+      return {};
+    },
+    [reload]
+  );
+
+  const issueConditionReport = useCallback(
+    async (input: {
+      tenancyId: string;
+      propertyId: string | null;
+      kind: "ingoing" | "outgoing";
+      notes?: string | null;
+      file?: File | null;
+    }) => {
+      let document_path: string | null = null;
+      if (input.file) {
+        if (!org?.id) return { error: "Couldn't determine your organisation for the upload." };
+        const safe = input.file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const path = `${org.id}/condition/${crypto.randomUUID()}-${safe}`;
+        const up = await supabase.storage.from("tenant-documents").upload(path, input.file);
+        if (up.error) return { error: `Report upload failed: ${up.error.message}` };
+        document_path = path;
+      }
+      const res = await supabase.from("condition_reports").insert({
+        tenancy_id: input.tenancyId,
+        property_id: input.propertyId,
+        kind: input.kind,
+        notes: input.notes?.trim() || null,
+        document_path,
+      });
+      if (res.error) return { error: res.error.message };
+      await reload();
+      return {};
+    },
+    [reload, org]
+  );
+
+  const deleteConditionReport = useCallback(
+    async (id: string) => {
+      const res = await supabase.from("condition_reports").delete().eq("id", id);
+      if (res.error) return { error: res.error.message };
+      await reload();
+      return {};
+    },
+    [reload]
+  );
+
   const addTenantDocument = useCallback(
     async (leaseTenantId: string, doc: TenantDocument) => {
       const lt = leaseTenants.find((x) => x.id === leaseTenantId);
@@ -863,6 +1008,8 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     propertyCosts,
     propertyPhotos,
     propertyBills,
+    complianceItems,
+    conditionReports,
     notifications,
     unreadCount,
     org,
@@ -887,6 +1034,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     markPaymentReceived,
     saveTenancy,
     endTenancy,
+    transferTenancy,
     setOnboarding,
     saveInspection,
     createApplication,
@@ -903,6 +1051,10 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     removeTenantDocument,
     addPropertyBill,
     deletePropertyBill,
+    saveComplianceItem,
+    deleteComplianceItem,
+    issueConditionReport,
+    deleteConditionReport,
   };
 
   return <PortfolioContext.Provider value={value}>{children}</PortfolioContext.Provider>;

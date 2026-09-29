@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { brand } from "@/lib/brand";
 import Badge from "@/components/ui/Badge";
 import InspectionChecklist from "@/components/InspectionChecklist";
+import RentalHistoryPanel from "@/components/portal/RentalHistoryPanel";
 import { Field, Select, Textarea } from "@/components/app/Field";
 import { fmtDate, fmtMoney, nextWeekdayDate, daysUntil } from "@/lib/format";
 import { REMINDER_DAYS } from "@/lib/inspections";
@@ -19,10 +20,14 @@ interface LoadedProperty {
   address: string | null;
   weekly_rent: number | null;
   rent_due_day: string | null;
+  is_strata?: boolean;
+  has_pool?: boolean;
 }
 interface Contact {
   org: string | null;
   email: string | null;
+  landlord_name?: string | null;
+  landlord_service_address?: string | null;
 }
 interface Payload {
   org_id?: string | null;
@@ -35,6 +40,18 @@ interface Payload {
   payments: Payment[];
   inspections: Inspection[];
   requests: MaintenanceRequest[];
+  condition_reports?: PortalConditionReport[];
+}
+
+interface PortalConditionReport {
+  id: string;
+  kind: string;
+  notes: string | null;
+  issued_at: string;
+  acknowledged_at: string | null;
+  acknowledged_name: string | null;
+  tenant_comment: string | null;
+  has_document: boolean;
 }
 
 const noticeTone: Record<string, "good" | "bad" | "warn" | "neutral"> = {
@@ -169,6 +186,8 @@ export default function PortalPage() {
             you rent another property managed with {brand.name}, it can be added to this portal.
           </p>
         </Card>
+
+        <RentalHistoryPanel />
 
         <Card title="Your property manager">
           <div className="text-sm">
@@ -341,6 +360,9 @@ export default function PortalPage() {
         <InspectionChecklist />
       </Card>
 
+      {/* Condition reports — acknowledge (counter-sign) */}
+      <PortalConditionReports token={token} reports={data.condition_reports || []} onDone={load} />
+
       {/* Documents & handouts */}
       <Card title="Documents & handouts">
         {resources.length === 0 ? (
@@ -369,6 +391,9 @@ export default function PortalPage() {
         )}
       </Card>
 
+      {/* Portable rental history + sharing (signed-in tenants only) */}
+      <RentalHistoryPanel />
+
       {/* Contact */}
       <Card title="Your property manager">
         <div className="text-sm">
@@ -378,8 +403,20 @@ export default function PortalPage() {
               {contact.email}
             </a>
           )}
+          {contact?.landlord_name && (
+            <div className="mt-2 text-muted">Landlord: {contact.landlord_name}</div>
+          )}
+          {contact?.landlord_service_address && (
+            <div className="text-muted">Address for notices: {contact.landlord_service_address}</div>
+          )}
           {tenancy.emergency_contact && (
             <div className="mt-2 text-muted">Emergency contact: {tenancy.emergency_contact}</div>
+          )}
+          {(property?.is_strata || property?.has_pool) && (
+            <div className="mt-3 rounded-lg border border-border p-3 text-xs text-muted">
+              {property?.is_strata && <div>This property is under strata / community title — the by-laws apply and are provided in your documents.</div>}
+              {property?.has_pool && <div>This property has a pool / spa — a pool-safety compliance certificate is provided.</div>}
+            </div>
           )}
         </div>
       </Card>
@@ -640,6 +677,96 @@ function Centered({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen items-center justify-center px-6">
       <div className="max-w-md text-center">{children}</div>
     </div>
+  );
+}
+
+function PortalConditionReports({
+  token,
+  reports,
+  onDone,
+}: {
+  token: string;
+  reports: PortalConditionReport[];
+  onDone: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [comment, setComment] = useState("");
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [err, setErr] = useState("");
+
+  if (reports.length === 0) return null;
+
+  async function acknowledge(id: string) {
+    setErr("");
+    if (!name.trim()) {
+      setErr("Type your full name to acknowledge.");
+      return;
+    }
+    setBusyId(id);
+    const { data, error } = await supabase.rpc("portal_acknowledge_condition_report", {
+      p_token: token,
+      p_report_id: id,
+      p_name: name.trim(),
+      p_comment: comment.trim(),
+    });
+    setBusyId(null);
+    const res = (data ?? {}) as { error?: string };
+    if (error || res.error) {
+      setErr(error?.message || res.error || "Couldn't acknowledge the report.");
+      return;
+    }
+    setName("");
+    setComment("");
+    onDone();
+  }
+
+  return (
+    <Card title="Condition report">
+      <p className="mb-3 text-sm text-muted">
+        Your manager has issued the condition report for this property. Please review it and acknowledge it —
+        this is the record used if there&apos;s ever a bond dispute. If anything is inaccurate, add a note.
+      </p>
+      <ul className="space-y-3">
+        {reports.map((r) => (
+          <li key={r.id} className="rounded-xl border border-border p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-sm">
+                <span className="font-medium capitalize">{r.kind}</span> report · issued {fmtDate(r.issued_at.slice(0, 10))}
+              </span>
+              {r.acknowledged_at ? (
+                <Badge tone="good">Acknowledged {fmtDate(r.acknowledged_at.slice(0, 10))}</Badge>
+              ) : (
+                <Badge tone="warn">Please acknowledge</Badge>
+              )}
+            </div>
+            {r.notes && <p className="mt-2 text-sm text-muted">{r.notes}</p>}
+            {r.acknowledged_at ? (
+              <p className="mt-2 text-xs text-muted">
+                Signed by {r.acknowledged_name || "you"}
+                {r.tenant_comment ? ` · your note: ${r.tenant_comment}` : ""}
+              </p>
+            ) : (
+              <div className="mt-3 space-y-2">
+                <Field label="Your full name" value={name} onChange={(e) => setName(e.target.value)} />
+                <Textarea
+                  label="Comment (optional — note anything you disagree with)"
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                />
+                <button
+                  onClick={() => acknowledge(r.id)}
+                  disabled={busyId === r.id}
+                  className="rounded-full bg-foreground px-5 py-2 text-sm font-medium text-background hover:opacity-80 disabled:opacity-50"
+                >
+                  {busyId === r.id ? "Saving…" : "Acknowledge report"}
+                </button>
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+      {err && <p className="mt-2 text-sm text-bad">{err}</p>}
+    </Card>
   );
 }
 

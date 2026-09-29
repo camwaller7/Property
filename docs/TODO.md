@@ -4,7 +4,28 @@ Two living lists, kept current as we work. `docs/ROADMAP.md` holds the full hist
 
 Legend: `[ ]` open · `[~]` in progress / waiting · `[x]` done · **(you)** dashboard/browser · **(build)** code (Claude) · **(test)** hands-on check
 
-_Last updated: 2026-09-24_
+_Last updated: 2026-09-28_
+
+---
+
+## ⛔ OUTSTANDING — blocked on you / can't be completed from here
+The rolling list of things I can't finish myself, because they need a dashboard
+action, an external account/secret, a hands-on test, or a product decision.
+Kept current as we go.
+
+**Needs a setting or secret only you can add:**
+- [ ] **(you)** Resend: verify `corvelleproperty.com` + set sender to `noreply@corvelleproperty.com`.
+- [ ] **(you)** GoDaddy DNS: add SPF / DKIM / DMARC (`docs/EMAIL-DELIVERABILITY.md`).
+- [ ] **(you)** Vercel env: `CRON_SECRET` + `SUPABASE_SERVICE_ROLE_KEY` (reminder cron 401s without them).
+- [ ] **(you)** Supabase Auth: decide the **Confirm email** toggle; enable leaked-password protection + CAPTCHA before public.
+- [ ] **(you)** `ANTHROPIC_API_KEY` in Vercel — needed for the AI assistant **and** the messaging-assistant feature below.
+
+**Needs you to do a real-world test (I fix what it surfaces):**
+- [ ] **(test)** Live sign-up on the domain → send me the email → I verify org isolation.
+- [ ] **(test)** End-to-end walkthrough on Eltham Ave (add property → tenancy → onboarding → agreement → portal → maintenance → inspection → costs → rent).
+
+**Needs a product decision before I can build (see the section it belongs to):**
+- [ ] **Messaging assistant (Telegram/WhatsApp → auto-file)** — awaiting your choice of channel + go-ahead. Spec in 🅱 "Later product".
 
 ---
 
@@ -27,12 +48,13 @@ Goal: run your own properties (starting Eltham Ave, SA) through the whole flow f
 
 ### Lease lifecycle & tenant portability — staged
 - [x] **(build)** **PR 1** — **End tenancy**: manager clicks "End tenancy" (optional reference note) → writes a tenant-owned `rental_history` snapshot and marks the tenancy ended. The tenant portal then shows a **past-tenancy record** (property name + lease dates only; live rent/notices/maintenance/documents hidden) and their **account stays live**. The portal also auto-switches to this view once `lease_end` passes.
-- [ ] **(build)** **PR 2** — **Transfer a tenant** to another of your properties: one action that moves them + their people/documents into a new tenancy and ends the old one, no re-application.
-- [ ] **(build)** **PR 3** — **Portable rental history**: the tenant's account shows their history across managers; tenant-consented **share to a new PM** (read-only reference), crossing org isolation only with consent.
+- [x] **(build)** **PR 2** — **Transfer a tenant** to another of your properties: one "Transfer to another property" action on the lease card moves the tenant + everyone on the lease (and their documents) into a fresh live tenancy on the target property, re-points their portal login, and ends the old tenancy with a rental-history snapshot — no re-application. Same-portfolio only (`transfer_tenancy` RPC never crosses org isolation).
+- [x] **(build)** **PR 3** — **Portable rental history**. The tenant portal (signed-in) shows their **rental history across every manager** (property, dates, rent, reference note). A new PM can **request** a prospective tenant's history by email on the Management → **History references** tab; the tenant sees the request in their portal and **approves / declines / revokes** it. Only an approved share lets that one org read the history (extended `rental_history` RLS via `rental_history_shares` + consent RPCs) — the sole path across org isolation, always tenant-controlled.
 
 ### Recurring bills & calendar
 - [x] **(build)** **Council rates / water / other recurring bills** per property (amount, cycle, next-due, payer) on the Cost tracking page — auto-projected into the Management **calendar** and a new **"Rates & bills due (30 days)"** dashboard tile. Council rates are landlord-only; **water/tenant-recoverable bills** have a **"Send to tenant"** action that posts a portal notice. Landlord-only data — never shown in the tenant portal.
 - [x] **(build)** Calendar list below the grid is now a **2-week snapshot** ("Next 2 weeks") instead of a flat list.
+- [x] **(build)** **GST on Cost tracking** — each cost records the **total (GST-inclusive) amount** and captures the **GST amount** explicitly: an "Amount includes GST" flag plus an editable **GST amount ($)** field that pre-fills to the AU 1/11th default but takes the exact figure off the invoice (untick for GST-free rates/water/land-tax/interest). The Breakdown shows a **GST included** line (sum of captured GST = BAS input-tax credit), each row shows its GST, and the CSV export includes GST-inclusive + GST-component columns. Not tax advice.
 
 ### Auth / sign-in (Section C tail)
 - [x] **(build)** Tenant claim link handles an **existing account**: if the email already has an account (or a returning tenant already has one), they can **sign in on the claim link to link** it to the tenancy (`claim_tenancy` RPC), instead of the sign-up dead-ending on "already registered".
@@ -51,6 +73,9 @@ Goal: run your own properties (starting Eltham Ave, SA) through the whole flow f
 - [x] **(build)** Tenant→`/app` guard: a tenant who opens the manager app is redirected to `/tenant`.
 - [x] **(build)** Draft **Terms of Service** + **Privacy Policy** pages (`/legal/terms`, `/legal/privacy`, linked in the footer) + "not legal advice" note on the generated handbook. *(Placeholders + lawyer review before public — see 🅱.)*
 
+### Branding & polish
+- [ ] **(build)** **Landing-page logo reveal** — on first open of the site/app, play a brief logo-reveal animation, then reveal the page (from a forwarded reel, François Deverre). Respect `prefers-reduced-motion` and only show once per session.
+
 ### Optional during the test
 - [ ] **(you)** Set `ANTHROPIC_API_KEY` if you want to trial the **AI assistant** (Pro feature) during the month.
 - [ ] **(you/build)** Set up **Stripe Connect (Express)** only if you want to test *online rent collection* live; otherwise defer — manual "mark paid" is fine for the test.
@@ -61,6 +86,11 @@ Goal: run your own properties (starting Eltham Ave, SA) through the whole flow f
 Everything needed before other people create accounts and pay.
 
 ### Security & auth
+- [x] **(build)** **Inactivity auto-logout** — the manager workspace signs you out after **4 hours** of browser inactivity (or if the browser was closed longer than that), forcing a fresh login. RLS already isolates data; this is the extra safety layer on the persisted session.
+- [ ] **(build)** **Lock down internal RPCs** (from Supabase security advisors, 2026-09-29). Most SECURITY DEFINER functions are correctly public (token-guarded portal RPCs) or self-checking (they enforce `auth.uid()`/`my_org_ids()` internally). But a subset of **internal helpers should not be directly callable by `anon`/`authenticated`**: `notify_manager`, `log_email`, `render_notification_email`, `get_org_owner_email`, `check_upcoming_notifications`, `notify_new_maintenance_request`, `mark_overdue`, `generate_rent_schedule`, `app_base_url`. Revoke EXECUTE from anon/authenticated (keep service-role/trigger use), verifying each isn't relied on by the client first. Prevents email-send abuse + owner-email enumeration.
+- [ ] **(build)** Set `search_path` on `app_base_url` and `render_notification_email` (advisor WARN); add an explicit policy (or documented deny-all) on `inspection_reminders_sent` (RLS on, no policy — currently deny-all, which is safe but flagged).
+- [ ] **(build)** **Rate-limiting / abuse protection** on the anon-callable token RPCs and `/api/*` — especially `request_rental_history` (email trigger), `onboard_submit`, `portal_submit_request`, `/api/email`. Throttle per token/IP.
+- [ ] **(build)** **Storage upload limits** — enforce max file size + allowed MIME types on the private buckets (receipts, tenant-documents, compliance-certificates, condition reports) to prevent abuse of the upload endpoints.
 - [ ] **(you)** Enable **leaked-password protection** (HaveIBeenPwned) in Supabase Auth → Passwords. *(May need Supabase Pro.)*
 - [ ] **(you)** Email **confirmation ON** with working Resend SMTP (blocks fake/typo sign-ups).
 - [ ] **(you)** Add **CAPTCHA / bot protection** on sign-up (Supabase Auth → Attack Protection).
@@ -82,6 +112,18 @@ Everything needed before other people create accounts and pay.
 - [ ] **(you/build)** Verify **all 8 states/territories'** bond caps, notice periods, tribunal + authority links against official sources.
 - [ ] **(build)** Empty states, error states, and **mobile/responsive QA** across every page + the tenant portal.
 
+### Documents & requirements audit (see `docs/DOCUMENT-AUDIT.md`, 2026-09-28)
+Full comparison of our forms/docs/requirements against established AU agency + authority practice, with sourced gaps. Priorities from that doc:
+- [x] **(build) P1 — Compliance & safety register** — new **Compliance** tab: per-property smoke/gas/electrical/pool/blind-cord/min-standards items with editable cadence, last-done → auto next-due, provider, private certificate storage, "mark done today", and a status (Up to date / Due soon / Overdue). Due dates flow into the Management **calendar** + a **"Compliance & safety due"** dashboard tile. Per-state cadences still to be confirmed against the jurisdiction data.
+- [x] **(build) P1 — Condition report issued/acknowledged tracking** + tenant portal **counter-sign**. Manager issues an ingoing/outgoing condition report (optional attached file) from the lease card; the tenant sees it in their portal and **acknowledges** it (typed name + optional disagreement note), which stamps `acknowledged_at`. Manager sees Acknowledged / Awaiting tenant status. `condition_reports` table + token-scoped `portal_acknowledge_condition_report` RPC; `portal_get` now returns the reports.
+- [x] **(build) P1 — Pool/spa & strata + landlord legal identity.** Property form now captures **landlord legal name + service address (for notices)** and **has-pool / is-strata** flags. These flow into the generated tenancy agreement (Parties + a Premises strata/pool disclosure) and the tenant portal (landlord name + notice address, and a strata by-laws / pool-safety disclosure). Pool-safety recurring check is tracked in the Compliance register; by-laws are shared via Documents.
+- [ ] **(build) P2 — Rent ledger** view + export (running balance, arrears; providable within 7 days).
+- [ ] **(build) P2 — Routine inspection report** output (findings + photos → owner/tenant).
+- [ ] **(build) P2 — Fuller lease clauses** (inclusions schedule, occupants, pets, water/utilities, safety, break-lease/assignment).
+- [ ] **(build) P2 — Screening depth** (rent-to-income flag, credit/tenancy-database result field, structured reference-check capture).
+- [ ] **(build) P2 — Arrears workflow** (reminder → breach → notice timeline).
+- [ ] **(build) P3 — Agency-grade owner side** — management agreement, owner statements/disbursements, landlord insurance record, key register, disclosure statements.
+
 ### Growth & ops
 - [ ] **(build)** Marketing / lead-capture site (public front to acquire clients).
 - [ ] **(build)** Tenant **scheduled email reminders** (rent due) — server-side scheduled send (pg_cron/edge + email).
@@ -90,6 +132,27 @@ Everything needed before other people create accounts and pay.
 - [ ] **(you)** `admin@corvelleproperty.com` mailbox live (MX) for inbound/support mail.
 
 ### Later product (not blocking public, but on the roadmap)
+- [ ] **(build)** **Messaging assistant — text documents in, auto-filed.** A manager
+  messages a bot (Telegram to start) with a photo/PDF + a line of text; the AI
+  assistant reads it, classifies it (receipt → cost tracking with amount + GST +
+  property; maintenance update → matter thread; contract/handbook → documents;
+  etc.), files it in the software, and replies to confirm. Design:
+  - **Transport:** a webhook endpoint (e.g. `/api/telegram`) receiving Bot API
+    updates, verified by a secret token; downloads the attached file.
+  - **Identity:** a one-time **link step** — the manager links their Telegram
+    chat to their org (a code shown in-app), stored in a `messaging_links`
+    table, so the bot only ever writes to that manager's org (never crosses
+    isolation). Unlinked chats are rejected.
+  - **Parsing:** Claude (vision) extracts fields + picks the destination; the
+    file lands in the right private bucket and the right table via the existing
+    server-side flows. Low-confidence → it asks a clarifying question instead of
+    guessing.
+  - **Prereqs (yours):** a Telegram bot token (BotFather), `ANTHROPIC_API_KEY`,
+    and a public webhook (Vercel gives this). WhatsApp is possible later but
+    needs a Business API/provider (Twilio/Meta) — heavier setup.
+  - **Buildable now without the bot:** the same parse-and-file pipeline exposed
+    inside the app's Assistant (drag a receipt in → it drafts the cost for you to
+    confirm), then wire the Telegram transport on top once the token exists.
 - [ ] **(build)** Development module (feasibility, stages, budgets, approvals).
 - [ ] **(build)** Deeper investment analytics (cash-on-cash, gearing, portfolio trends).
-- [ ] **(build)** Compliance schedule (recurring smoke-alarm/safety checks + reminders).
+- [ ] **(build)** Compliance schedule (recurring smoke-alarm/safety checks + reminders). → **now specified as P1 in `docs/DOCUMENT-AUDIT.md`.**

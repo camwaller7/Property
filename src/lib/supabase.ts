@@ -5,9 +5,12 @@ import { createClient } from "@supabase/supabase-js";
 // NEXT_PUBLIC_* env vars (set these in Vercel) and fall back to the existing
 // project's public values so the app runs with zero config in development.
 //
-// SECURITY NOTE: RLS currently grants the anon role full read/write. Before
-// this holds real tenant/financial data, add Supabase Auth + an owner_id
-// column and tighten the policies. See README "Roadmap".
+// SECURITY: every business table has RLS ENABLED with policies scoped to the
+// `authenticated` role and `org_id in my_org_ids()` (verified live) — the anon
+// role has no access, so an unauthenticated visitor sees nothing and one org
+// can never read another's data. Sign-in is via Supabase Auth; the session
+// below is persisted per-browser (login memory), which is why a returning user
+// on the same browser is signed straight back in.
 const SUPABASE_URL =
   process.env.NEXT_PUBLIC_SUPABASE_URL || "https://tioeqxdulxqiptlszldp.supabase.co";
 

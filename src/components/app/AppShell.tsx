@@ -8,6 +8,7 @@ import { brand } from "@/lib/brand";
 import { supabase } from "@/lib/supabase";
 import { PortfolioProvider } from "@/lib/portfolio";
 import { PASSWORD_HINT, passwordProblem } from "@/lib/password";
+import { useInactivityLogout } from "@/lib/useInactivityLogout";
 import NotificationBell from "./NotificationBell";
 
 const nav = [
@@ -15,6 +16,7 @@ const nav = [
   { href: "/app/properties", label: "Properties" },
   { href: "/app/costs", label: "Cost tracking" },
   { href: "/app/management", label: "Management" },
+  { href: "/app/compliance", label: "Compliance" },
   { href: "/app/documents", label: "Documents" },
   { href: "/app/assistant", label: "Assistant" },
   { href: "/app/resources", label: "Resources" },
@@ -30,6 +32,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const [isTenant, setIsTenant] = useState<boolean | null>(null);
   const pathname = usePathname();
   const router = useRouter();
+
+  // Require a fresh login after 4 hours of browser inactivity.
+  useInactivityLogout(!!session);
 
   useEffect(() => {
     let active = true;
