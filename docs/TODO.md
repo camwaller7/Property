@@ -87,6 +87,10 @@ Everything needed before other people create accounts and pay.
 
 ### Security & auth
 - [x] **(build)** **Inactivity auto-logout** — the manager workspace signs you out after **4 hours** of browser inactivity (or if the browser was closed longer than that), forcing a fresh login. RLS already isolates data; this is the extra safety layer on the persisted session.
+- [ ] **(build)** **Lock down internal RPCs** (from Supabase security advisors, 2026-09-29). Most SECURITY DEFINER functions are correctly public (token-guarded portal RPCs) or self-checking (they enforce `auth.uid()`/`my_org_ids()` internally). But a subset of **internal helpers should not be directly callable by `anon`/`authenticated`**: `notify_manager`, `log_email`, `render_notification_email`, `get_org_owner_email`, `check_upcoming_notifications`, `notify_new_maintenance_request`, `mark_overdue`, `generate_rent_schedule`, `app_base_url`. Revoke EXECUTE from anon/authenticated (keep service-role/trigger use), verifying each isn't relied on by the client first. Prevents email-send abuse + owner-email enumeration.
+- [ ] **(build)** Set `search_path` on `app_base_url` and `render_notification_email` (advisor WARN); add an explicit policy (or documented deny-all) on `inspection_reminders_sent` (RLS on, no policy — currently deny-all, which is safe but flagged).
+- [ ] **(build)** **Rate-limiting / abuse protection** on the anon-callable token RPCs and `/api/*` — especially `request_rental_history` (email trigger), `onboard_submit`, `portal_submit_request`, `/api/email`. Throttle per token/IP.
+- [ ] **(build)** **Storage upload limits** — enforce max file size + allowed MIME types on the private buckets (receipts, tenant-documents, compliance-certificates, condition reports) to prevent abuse of the upload endpoints.
 - [ ] **(you)** Enable **leaked-password protection** (HaveIBeenPwned) in Supabase Auth → Passwords. *(May need Supabase Pro.)*
 - [ ] **(you)** Email **confirmation ON** with working Resend SMTP (blocks fake/typo sign-ups).
 - [ ] **(you)** Add **CAPTCHA / bot protection** on sign-up (Supabase Auth → Attack Protection).
