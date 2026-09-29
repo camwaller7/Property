@@ -140,7 +140,22 @@ export interface Organization {
   default_state?: string | null;
   stripe_account_id?: string | null;
   stripe_charges_enabled?: boolean;
+  deletion_requested_at?: string | null;
+  deletion_requested_by?: string | null;
   created_at?: string;
+}
+
+// A past tenant's request to have their tenancy data deleted (only available
+// once the tenancy has ended). Routed to the manager, who actions it.
+export interface TenantDataDeletionRequest {
+  id: string;
+  org_id: string | null;
+  tenancy_id: string | null;
+  tenant_user_id: string | null;
+  note: string | null;
+  status: "pending" | "actioned" | "declined" | string;
+  requested_at: string;
+  actioned_at: string | null;
 }
 
 export interface OrgMember {

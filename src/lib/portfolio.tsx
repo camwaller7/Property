@@ -166,6 +166,8 @@ interface PortfolioContextValue {
   deleteInspectionReport: (id: string) => Promise<{ error?: string }>;
   uploadInspectionPhoto: (file: File) => Promise<{ path?: string; error?: string }>;
   removeInspectionPhoto: (path: string) => Promise<void>;
+  requestAccountDeletion: () => Promise<{ error?: string; scheduledFor?: string }>;
+  cancelAccountDeletion: () => Promise<{ error?: string }>;
   addTenantDocument: (leaseTenantId: string, doc: TenantDocument) => Promise<{ error?: string }>;
   removeTenantDocument: (leaseTenantId: string, doc: TenantDocument) => Promise<{ error?: string }>;
 }
@@ -1039,6 +1041,25 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     await supabase.storage.from("inspection-reports").remove([path]);
   }, []);
 
+  // Owner requests deletion of the whole org (30-day grace). The caller signs
+  // the manager out after this resolves.
+  const requestAccountDeletion = useCallback(async () => {
+    const { data, error } = await supabase.rpc("request_account_deletion");
+    if (error) return { error: error.message };
+    const res = data as { error?: string; scheduled_for?: string };
+    if (res?.error) return { error: res.error };
+    return { scheduledFor: res?.scheduled_for };
+  }, []);
+
+  const cancelAccountDeletion = useCallback(async () => {
+    const { data, error } = await supabase.rpc("cancel_account_deletion");
+    if (error) return { error: error.message };
+    const res = data as { error?: string };
+    if (res?.error) return { error: res.error };
+    await reload();
+    return {};
+  }, [reload]);
+
   const addTenantDocument = useCallback(
     async (leaseTenantId: string, doc: TenantDocument) => {
       const lt = leaseTenants.find((x) => x.id === leaseTenantId);
@@ -1147,6 +1168,8 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     deleteInspectionReport,
     uploadInspectionPhoto,
     removeInspectionPhoto,
+    requestAccountDeletion,
+    cancelAccountDeletion,
   };
 
   return <PortfolioContext.Provider value={value}>{children}</PortfolioContext.Provider>;
