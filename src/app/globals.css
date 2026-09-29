@@ -78,13 +78,22 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* Print: drop the app chrome so contracts/handbooks print clean. */
+/* Print: drop the app chrome so contracts/handbooks/reports print clean. */
 @media print {
   aside,
   .no-print {
     display: none !important;
   }
   main {
+    padding: 0 !important;
+  }
+  /* Elements only meant for the printed copy (labels replacing form inputs). */
+  .print-only {
+    display: block !important;
+  }
+  /* The report sheet should sit flush on the page, no card chrome. */
+  .report-sheet {
+    border: 0 !important;
     padding: 0 !important;
   }
   :root {

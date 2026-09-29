@@ -6,6 +6,7 @@ import ApplicationPanel from "./ApplicationPanel";
 import PortalPanel from "./PortalPanel";
 import InspectionScheduler from "./InspectionScheduler";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { usePortfolio } from "@/lib/portfolio";
 import type { Inspection, Tenancy } from "@/lib/types";
 import { fmtDate, fmtMoney } from "@/lib/format";
@@ -35,7 +36,9 @@ export default function TenancyCard({
   tenancy: Tenancy;
   onEdit: (t: Tenancy) => void;
 }) {
-  const { properties, inspections, setOnboarding, saveInspection, endTenancy, transferTenancy, conditionReports, issueConditionReport, deleteConditionReport, org } = usePortfolio();
+  const { properties, inspections, setOnboarding, saveInspection, endTenancy, transferTenancy, conditionReports, issueConditionReport, deleteConditionReport, inspectionReports, createInspectionReport, org } = usePortfolio();
+  const router = useRouter();
+  const [startingReport, setStartingReport] = useState(false);
   const [open, setOpen] = useState(true);
   const [ending, setEnding] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
@@ -65,6 +68,16 @@ export default function TenancyCard({
     if (res.error) return setCrErr(res.error);
     setCrNotes("");
     setCrFile(null);
+  }
+
+  async function startInspectionReport() {
+    setStartingReport(true);
+    const res = await createInspectionReport({
+      tenancyId: tenancy.id,
+      propertyId: tenancy.property_id,
+    });
+    setStartingReport(false);
+    if (res.id) router.push(`/app/inspection-report/${res.id}`);
   }
 
   async function handleEnd() {
@@ -105,6 +118,9 @@ export default function TenancyCard({
   const myReports = conditionReports
     .filter((r) => r.tenancy_id === t.id)
     .sort((a, b) => (b.issued_at || "").localeCompare(a.issued_at || ""));
+  const myInspectionReports = inspectionReports
+    .filter((r) => r.tenancy_id === t.id)
+    .sort((a, b) => (b.inspected_on || "").localeCompare(a.inspected_on || ""));
   const items = t.onboarding || [];
   const doneCount = items.filter((i) => i.done).length;
   const pct = items.length ? Math.round((doneCount / items.length) * 100) : 0;
@@ -384,6 +400,42 @@ export default function TenancyCard({
               </ul>
             )}
             {t.property_id && <InspectionScheduler propertyId={t.property_id} tenancyId={t.id} />}
+          </div>
+
+          {/* Routine inspection reports — room-by-room findings + photos, printable and shared to the tenant */}
+          <div className="mt-6">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <h4 className="text-sm font-semibold uppercase tracking-wide text-muted">Inspection reports</h4>
+              <button
+                onClick={startInspectionReport}
+                disabled={startingReport}
+                className="rounded-full bg-foreground px-4 py-1.5 text-xs font-medium text-background hover:opacity-80 disabled:opacity-50"
+              >
+                {startingReport ? "Starting…" : "New report"}
+              </button>
+            </div>
+            {myInspectionReports.length === 0 ? (
+              <p className="text-sm text-muted">No routine inspection reports yet.</p>
+            ) : (
+              <ul className="space-y-2">
+                {myInspectionReports.map((r) => (
+                  <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2 text-sm">
+                    <span>
+                      <span className="font-medium capitalize">{r.kind}</span>
+                      {" · "}
+                      {fmtDate(r.inspected_on)}
+                      {r.overall_condition ? <span className="block text-xs text-muted">Overall: {r.overall_condition}</span> : null}
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <Badge tone={r.finalised_at ? "good" : "warn"}>{r.finalised_at ? "Finalised" : "Draft"}</Badge>
+                      <Link href={`/app/inspection-report/${r.id}`} className="text-xs font-medium text-accent hover:underline">
+                        {r.finalised_at ? "View / print" : "Edit"}
+                      </Link>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           {/* Condition reports — issue to the tenant to counter-sign in their portal */}

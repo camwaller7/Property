@@ -41,6 +41,25 @@ interface Payload {
   inspections: Inspection[];
   requests: MaintenanceRequest[];
   condition_reports?: PortalConditionReport[];
+  inspection_reports?: PortalInspectionReport[];
+}
+
+interface PortalInspectionReportArea {
+  area: string | null;
+  condition: string | null;
+  notes: string | null;
+  photo_count: number;
+}
+interface PortalInspectionReport {
+  id: string;
+  kind: string;
+  inspected_on: string | null;
+  inspector_name: string | null;
+  overall_condition: string | null;
+  summary: string | null;
+  follow_up: string | null;
+  finalised_at: string | null;
+  areas: PortalInspectionReportArea[];
 }
 
 interface PortalConditionReport {
@@ -363,6 +382,8 @@ export default function PortalPage() {
       {/* Condition reports — acknowledge (counter-sign) */}
       <PortalConditionReports token={token} reports={data.condition_reports || []} onDone={load} />
 
+      <PortalInspectionReports reports={data.inspection_reports || []} />
+
       {/* Documents & handouts */}
       <Card title="Documents & handouts">
         {resources.length === 0 ? (
@@ -488,6 +509,7 @@ function MaintenanceCard({
             to: managerEmail,
             subject: `New ${kind}${propertyLabel ? ` — ${propertyLabel}` : ""}`,
             body: `${tenantName || "A tenant"} submitted a ${urgency} ${category} ${kind}:\n\n${title}\n${description}\n\nOpen the workspace to action it.`,
+            token,
           }),
         }).catch(() => {});
       }
@@ -766,6 +788,63 @@ function PortalConditionReports({
         ))}
       </ul>
       {err && <p className="mt-2 text-sm text-bad">{err}</p>}
+    </Card>
+  );
+}
+
+function PortalInspectionReports({ reports }: { reports: PortalInspectionReport[] }) {
+  if (reports.length === 0) return null;
+  const condTone: Record<string, "good" | "warn" | "bad" | "neutral"> = {
+    good: "good",
+    fair: "warn",
+    poor: "bad",
+  };
+  const condLabel: Record<string, string> = { good: "Good", fair: "Fair", poor: "Poor", na: "N/A" };
+  return (
+    <Card title="Inspection reports">
+      <p className="mb-3 text-sm text-muted">
+        Findings from your manager&apos;s routine inspections. Photos are held on file with your manager.
+      </p>
+      <ul className="space-y-4">
+        {reports.map((r) => {
+          const areasWithContent = r.areas.filter((a) => a.condition !== "na" || (a.notes && a.notes.trim()));
+          return (
+            <li key={r.id} className="rounded-xl border border-border p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-sm font-medium">
+                  Inspected {fmtDate(r.inspected_on)}
+                  {r.inspector_name ? ` · by ${r.inspector_name}` : ""}
+                </span>
+                {r.overall_condition ? (
+                  <Badge tone={condTone[r.overall_condition] ?? "neutral"}>
+                    Overall: {condLabel[r.overall_condition] ?? r.overall_condition}
+                  </Badge>
+                ) : null}
+              </div>
+              {areasWithContent.length > 0 && (
+                <ul className="mt-3 space-y-2">
+                  {areasWithContent.map((a, i) => (
+                    <li key={i} className="flex flex-wrap items-start justify-between gap-2 border-t border-border pt-2 text-sm first:border-0 first:pt-0">
+                      <span className="min-w-0">
+                        <span className="font-medium">{a.area || "Area"}</span>
+                        {a.notes ? <span className="block text-xs text-muted">{a.notes}</span> : null}
+                        {a.photo_count > 0 ? (
+                          <span className="block text-xs text-muted">{a.photo_count} photo{a.photo_count === 1 ? "" : "s"} on file</span>
+                        ) : null}
+                      </span>
+                      {a.condition ? (
+                        <Badge tone={condTone[a.condition] ?? "neutral"}>{condLabel[a.condition] ?? a.condition}</Badge>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {r.summary ? <p className="mt-3 text-sm"><span className="font-medium">Summary:</span> {r.summary}</p> : null}
+              {r.follow_up ? <p className="mt-1 text-sm text-muted"><span className="font-medium">Follow-up:</span> {r.follow_up}</p> : null}
+            </li>
+          );
+        })}
+      </ul>
     </Card>
   );
 }

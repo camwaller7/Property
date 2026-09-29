@@ -1,6 +1,7 @@
 name: CI
 
-# Lint + production build on every PR and on pushes to main, so main stays green.
+# Lint + typecheck + unit tests + production build on every PR and on pushes to
+# main, so main stays green.
 on:
   pull_request:
   push:
@@ -23,6 +24,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Unit tests
+        run: npm test
+
       - name: Build
         run: npm run build
         env:
@@ -30,3 +34,10 @@ jobs:
           # Real values live in Vercel; nothing secret is needed to type-check/build.
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
+
+      # Runs AFTER the build so Next's generated route types (.next/types —
+      # LayoutProps<>, PageProps<>) exist; a cold `tsc` can't resolve them.
+      # This still adds value over the build's own check: it verifies the test
+      # files, which the production build doesn't compile.
+      - name: Typecheck
+        run: npm run typecheck

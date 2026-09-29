@@ -89,7 +89,8 @@ Everything needed before other people create accounts and pay.
 - [x] **(build)** **Inactivity auto-logout** — the manager workspace signs you out after **4 hours** of browser inactivity (or if the browser was closed longer than that), forcing a fresh login. RLS already isolates data; this is the extra safety layer on the persisted session.
 - [ ] **(build)** **Lock down internal RPCs** (from Supabase security advisors, 2026-09-29). Most SECURITY DEFINER functions are correctly public (token-guarded portal RPCs) or self-checking (they enforce `auth.uid()`/`my_org_ids()` internally). But a subset of **internal helpers should not be directly callable by `anon`/`authenticated`**: `notify_manager`, `log_email`, `render_notification_email`, `get_org_owner_email`, `check_upcoming_notifications`, `notify_new_maintenance_request`, `mark_overdue`, `generate_rent_schedule`, `app_base_url`. Revoke EXECUTE from anon/authenticated (keep service-role/trigger use), verifying each isn't relied on by the client first. Prevents email-send abuse + owner-email enumeration.
 - [ ] **(build)** Set `search_path` on `app_base_url` and `render_notification_email` (advisor WARN); add an explicit policy (or documented deny-all) on `inspection_reminders_sent` (RLS on, no policy — currently deny-all, which is safe but flagged).
-- [ ] **(build)** **Rate-limiting / abuse protection** on the anon-callable token RPCs and `/api/*` — especially `request_rental_history` (email trigger), `onboard_submit`, `portal_submit_request`, `/api/email`. Throttle per token/IP.
+- [x] **(build)** **`/api/email` is no longer an open relay** — it now authorises every send against a valid manager session (Supabase access token), a valid tenant-portal token (restricted to emailing that tenancy's manager), or the cron `CRON_SECRET`. Unauthenticated callers get 401.
+- [ ] **(build)** **Numeric rate-limiting** still to add (per-token/IP throttle) on `/api/email`, `request_rental_history`, `onboard_submit`, `portal_submit_request` — the token/session gate is in place; volume throttling is the remaining layer. (`log_email` stays anon-callable until `SUPABASE_SERVICE_ROLE_KEY` lets `/api/email` use the service role.)
 - [ ] **(build)** **Storage upload limits** — enforce max file size + allowed MIME types on the private buckets (receipts, tenant-documents, compliance-certificates, condition reports) to prevent abuse of the upload endpoints.
 - [ ] **(you)** Enable **leaked-password protection** (HaveIBeenPwned) in Supabase Auth → Passwords. *(May need Supabase Pro.)*
 - [ ] **(you)** Email **confirmation ON** with working Resend SMTP (blocks fake/typo sign-ups).
@@ -109,8 +110,12 @@ Everything needed before other people create accounts and pay.
 - [ ] **(you)** GST handling/registration once turnover approaches A$75k; decide GST-inclusive pricing display.
 
 ### Content & correctness
-- [ ] **(you/build)** Verify **all 8 states/territories'** bond caps, notice periods, tribunal + authority links against official sources.
+- [x] **(build)** Verified **all 8 states/territories'** bond caps + routine-inspection notice/frequency against each authority's published guidance (Sep 2026, incl. the 2024 QLD & WA reforms). Fixes: QLD bond note (the >$700/week exemption was abolished 30 Sep 2024 — now a flat 4 weeks); VIC bond threshold set to $900 with correct "one month / reasonable above $900" wording; WA note now states the $1,200 cap threshold + $350 pet bond; **TAS routine-inspection notice corrected to 24 hours (was wrongly 7–14 days)**; added an accurate per-year inspection cap for every state (NSW/QLD/SA/WA/NT = 4, VIC/ACT = 2) and made `maxNoticeDays` nullable since only SA sets a legislated notice *window* (7–28 days). These notes flow into the generated tenancy agreement. Still guidance, not legal advice — authority links included for confirmation.
 - [ ] **(build)** Empty states, error states, and **mobile/responsive QA** across every page + the tenant portal.
+
+### Quality & reliability
+- [x] **(build)** **RLS tenant-delete fix** — `condition_reports`, `rental_history` (PR #18) and `inspection_reports` (PR #19) each had a single `FOR ALL` policy whose `USING` admitted the tenant/approved-share reader but whose `WITH CHECK` was org-only. Postgres checks only `USING` for `DELETE`, so a signed-in tenant could delete their own rows via the Supabase client (e.g. erase adverse rental history). Split each into an org-scoped `FOR ALL` + a read-only `SELECT` policy for the tenant/share paths. Applied live + `supabase/migrations/20260929_rls_tenant_readonly_fix.sql`.
+- [x] **(build)** **Automated tests + CI** — Vitest unit suite (66 tests) over the pure business logic: SA inspection notice-window rules, the 8-state jurisdiction/bond-cap table, GST + financial-year maths, recurring-bill date projection, portfolio finance rollups, and the password policy. `gstComponent`/`financialYear` extracted to `src/lib/costs.ts` so they're testable. CI (`.github/workflows/ci.yml`) now runs **lint → typecheck → unit tests → build** on every PR and push to `main`. Next: component/integration tests and a smoke test of the token-guarded portal RPCs.
 
 ### Documents & requirements audit (see `docs/DOCUMENT-AUDIT.md`, 2026-09-28)
 Full comparison of our forms/docs/requirements against established AU agency + authority practice, with sourced gaps. Priorities from that doc:
@@ -118,11 +123,28 @@ Full comparison of our forms/docs/requirements against established AU agency + a
 - [x] **(build) P1 — Condition report issued/acknowledged tracking** + tenant portal **counter-sign**. Manager issues an ingoing/outgoing condition report (optional attached file) from the lease card; the tenant sees it in their portal and **acknowledges** it (typed name + optional disagreement note), which stamps `acknowledged_at`. Manager sees Acknowledged / Awaiting tenant status. `condition_reports` table + token-scoped `portal_acknowledge_condition_report` RPC; `portal_get` now returns the reports.
 - [x] **(build) P1 — Pool/spa & strata + landlord legal identity.** Property form now captures **landlord legal name + service address (for notices)** and **has-pool / is-strata** flags. These flow into the generated tenancy agreement (Parties + a Premises strata/pool disclosure) and the tenant portal (landlord name + notice address, and a strata by-laws / pool-safety disclosure). Pool-safety recurring check is tracked in the Compliance register; by-laws are shared via Documents.
 - [ ] **(build) P2 — Rent ledger** view + export (running balance, arrears; providable within 7 days).
-- [ ] **(build) P2 — Routine inspection report** output (findings + photos → owner/tenant).
+- [x] **(build) P2 — Routine inspection report** output. Manager records room-by-room findings (condition rating + notes + photos per area) from the lease card ("Inspection reports → New report"), with an overall condition (auto-suggested from the findings), summary and owner follow-up. Renders as a clean **printable page** (browser → Save as PDF) at `/app/inspection-report/[id]`; **Save & finalise** publishes it to the tenant's portal (read-only: findings + per-area photo counts; private photos never exposed to the portal). New `inspection_reports` table + private `inspection-reports` photo bucket (org-path isolated, images-only 10 MB), extended `portal_get`. Unit-tested helpers in `lib/inspectionReport`.
 - [ ] **(build) P2 — Fuller lease clauses** (inclusions schedule, occupants, pets, water/utilities, safety, break-lease/assignment).
 - [ ] **(build) P2 — Screening depth** (rent-to-income flag, credit/tenancy-database result field, structured reference-check capture).
 - [ ] **(build) P2 — Arrears workflow** (reminder → breach → notice timeline).
 - [ ] **(build) P3 — Agency-grade owner side** — management agreement, owner statements/disbursements, landlord insurance record, key register, disclosure statements.
+
+### Launch review — reel notes (see `docs/LAUNCH-REVIEW.md`, 2026-09-29)
+Deep-dive of the forwarded "vibe coding" reels: legal, security, paywall UX,
+design anti-patterns, Apple App Store, stack. Full detail + real examples +
+current status live in that doc. Net-new prioritised actions:
+- [x] **(build)** **Security headers** in `next.config.ts` — CSP (default-src self; scripts/styles inline-only, no eval in prod; connect/img scoped to `*.supabase.co` + wss; `frame-ancestors 'none'`; `object-src 'none'`), HSTS (2y + includeSubDomains), X-Frame-Options DENY, X-Content-Type-Options nosniff, Referrer-Policy strict-origin-when-cross-origin, Permissions-Policy (camera/mic/geo/topics off), X-DNS-Prefetch-Control. Verified emitted on the running server. Phase-1 CSP keeps `'unsafe-inline'` scripts (Next injects inline bootstrap without nonces); tightening to nonce-based via middleware is a later step.
+- [ ] **(build/you)** **Confirm no secrets in git history**; rotate anything found.
+- [ ] **(build)** **Dependency scanning in CI** (`npm audit` / Dependabot).
+- [ ] **(build)** **Self-serve account/data deletion** request + documented retention (also an Apple requirement if we ever ship iOS).
+- [ ] **(build)** **Unsubscribe link + sender business address** on non-transactional emails (Spam Act 2003).
+- [ ] **(build)** **Numeric rate limits** (emails/day, writes/min, uploads/account) + login throttle; **2FA/OTP** for managers (before public).
+- [ ] **(build/you)** **Legal pack**: limitation-of-liability, governing law, indemnification, data-deletion, refund, cookie policy + consent banner; make policies match the real data map; add business details/ABN. Consider Termly/iubenda.
+- [ ] **(build)** **Accessibility pass** (alt text, colour contrast, keyboard nav) — fold into the mobile/empty-state QA (#below).
+- [ ] **(build)** **Paywall UX revamp** when billing is live — annual = primary/green with discount, trial gated to annual, lead with the outcome + savings, sell outcomes not features, per-line standalone cost, real reviews, 3-screen scrollable paywall, a polished checkout screen.
+- [ ] **(build/you)** **Design pass vs. anti-patterns** + install design skills (Emil Kowalski / impeccable design / taste) + connect Figma MCP; ship the **logo reveal** (see below).
+- [ ] **(you)** **Cyber liability insurance**; **read every stack's ToS** (Supabase/Vercel/Stripe/Resend/analytics) — feeds the privacy policy.
+- [ ] **(build, if iOS)** Apple App Store readiness — IAP for digital subs, Sign in with Apple parity, in-app account deletion (incl. the SIWA path), no broken demo/iPad UI/screenshots, report + restore-purchases features. N/A while web-only.
 
 ### Growth & ops
 - [ ] **(build)** Marketing / lead-capture site (public front to acquire clients).

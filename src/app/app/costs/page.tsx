@@ -7,6 +7,7 @@ import StatCard from "@/components/ui/StatCard";
 import { supabase } from "@/lib/supabase";
 import { usePortfolio } from "@/lib/portfolio";
 import { fmtMoney, fmtDate } from "@/lib/format";
+import { gstComponent, financialYear } from "@/lib/costs";
 import { Field, Select } from "@/components/app/Field";
 import PropertyBills from "@/components/app/PropertyBills";
 import type { PropertyCost, CostCategory } from "@/lib/types";
@@ -29,25 +30,6 @@ const CATEGORY_BAR: Record<CostCategory, string> = {
   improvement: "bg-good",
 };
 const CATEGORIES: CostCategory[] = ["holding", "maintenance", "improvement"];
-
-// GST component of a cost. Costs flagged GST-free (rates, water, land tax,
-// interest…) contribute nothing. Otherwise use the GST amount captured on the
-// invoice; if none was entered, fall back to the AU default of 1/11th of the
-// GST-inclusive total.
-function gstComponent(c: Pick<PropertyCost, "amount" | "includes_gst" | "gst_amount">): number {
-  if (c.includes_gst === false) return 0;
-  if (c.gst_amount != null && c.gst_amount !== undefined) return Number(c.gst_amount) || 0;
-  return (Number(c.amount) || 0) / 11;
-}
-
-// Australian financial year (1 Jul – 30 Jun) label for a YYYY-MM-DD date.
-function financialYear(dateStr: string | null): string | null {
-  if (!dateStr) return null;
-  const d = new Date(dateStr + "T00:00:00");
-  if (Number.isNaN(d.getTime())) return null;
-  const startYear = d.getMonth() >= 6 ? d.getFullYear() : d.getFullYear() - 1;
-  return `FY${startYear}-${String((startYear + 1) % 100).padStart(2, "0")}`;
-}
 
 export default function CostsPage() {
   const { properties, propertyCosts, loading } = usePortfolio();

@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { supabase } from "./supabase";
+import { postEmail } from "./email";
 import type {
   AppNotification,
   Inspection,
@@ -30,6 +31,8 @@ import type {
   PropertyBill,
   ComplianceItem,
   ConditionReport,
+  InspectionReport,
+  InspectionReportInput,
   PropertyPhoto,
   Tenancy,
   TenantApplication,
@@ -37,6 +40,7 @@ import type {
 } from "./types";
 import { daysUntil, portfolioStats } from "./format";
 import { quarterlyInspectionDates } from "./inspections";
+import { newInspectionAreas } from "./inspectionReport";
 
 export type TenancyInput = Omit<Tenancy, "id" | "created_at">;
 // A person on a lease as edited in the tenancy form. `id` present = existing
@@ -74,6 +78,7 @@ interface PortfolioContextValue {
   propertyBills: PropertyBill[];
   complianceItems: ComplianceItem[];
   conditionReports: ConditionReport[];
+  inspectionReports: InspectionReport[];
   notifications: AppNotification[];
   unreadCount: number;
   org: Organization | null;
@@ -149,6 +154,18 @@ interface PortfolioContextValue {
     file?: File | null;
   }) => Promise<{ error?: string }>;
   deleteConditionReport: (id: string) => Promise<{ error?: string }>;
+  createInspectionReport: (input: {
+    tenancyId: string;
+    propertyId: string | null;
+    inspectionId?: string | null;
+  }) => Promise<{ id?: string; error?: string }>;
+  saveInspectionReport: (
+    id: string,
+    patch: Partial<InspectionReportInput>
+  ) => Promise<{ error?: string }>;
+  deleteInspectionReport: (id: string) => Promise<{ error?: string }>;
+  uploadInspectionPhoto: (file: File) => Promise<{ path?: string; error?: string }>;
+  removeInspectionPhoto: (path: string) => Promise<void>;
   addTenantDocument: (leaseTenantId: string, doc: TenantDocument) => Promise<{ error?: string }>;
   removeTenantDocument: (leaseTenantId: string, doc: TenantDocument) => Promise<{ error?: string }>;
 }
@@ -170,6 +187,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   const [propertyBills, setPropertyBills] = useState<PropertyBill[]>([]);
   const [complianceItems, setComplianceItems] = useState<ComplianceItem[]>([]);
   const [conditionReports, setConditionReports] = useState<ConditionReport[]>([]);
+  const [inspectionReports, setInspectionReports] = useState<InspectionReport[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [org, setOrg] = useState<Organization | null>(null);
   const [members, setMembers] = useState<OrgMember[]>([]);
@@ -266,6 +284,12 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       .select("*")
       .order("issued_at", { ascending: false });
     setConditionReports((condReports as ConditionReport[]) || []);
+
+    const { data: inspReports } = await supabase
+      .from("inspection_reports")
+      .select("*")
+      .order("inspected_on", { ascending: false, nullsFirst: false });
+    setInspectionReports((inspReports as InspectionReport[]) || []);
 
     const { data: notifs } = await supabase
       .from("notifications")
@@ -740,11 +764,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         )
       );
       for (const to of emails) {
-        fetch("/api/email", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ to, subject, body, tenancyId: ten.id }),
-        }).catch(() => {});
+        postEmail({ to, subject, body, tenancyId: ten.id }).catch(() => {});
       }
     },
     [maintenance, tenancies, leaseTenants]
@@ -953,6 +973,72 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     [reload]
   );
 
+  // Create a draft routine inspection report seeded with the default area
+  // checklist. Returns the new row's id so the caller can open the editor.
+  const createInspectionReport = useCallback(
+    async (input: { tenancyId: string; propertyId: string | null; inspectionId?: string | null }) => {
+      const today = new Date().toISOString().slice(0, 10);
+      const res = await supabase
+        .from("inspection_reports")
+        .insert({
+          tenancy_id: input.tenancyId,
+          property_id: input.propertyId,
+          inspection_id: input.inspectionId ?? null,
+          kind: "routine",
+          inspected_on: today,
+          areas: newInspectionAreas(),
+        })
+        .select("id")
+        .single();
+      if (res.error) return { error: res.error.message };
+      await reload();
+      return { id: (res.data as { id: string }).id };
+    },
+    [reload]
+  );
+
+  const saveInspectionReport = useCallback(
+    async (id: string, patch: Partial<InspectionReportInput>) => {
+      const res = await supabase
+        .from("inspection_reports")
+        .update({ ...patch, updated_at: new Date().toISOString() })
+        .eq("id", id);
+      if (res.error) return { error: res.error.message };
+      await reload();
+      return {};
+    },
+    [reload]
+  );
+
+  const deleteInspectionReport = useCallback(
+    async (id: string) => {
+      const res = await supabase.from("inspection_reports").delete().eq("id", id);
+      if (res.error) return { error: res.error.message };
+      await reload();
+      return {};
+    },
+    [reload]
+  );
+
+  // Upload one photo to the private inspection-reports bucket under the org's
+  // path prefix; returns the stored path to hold in an area's `photos`.
+  const uploadInspectionPhoto = useCallback(
+    async (file: File) => {
+      if (!org?.id) return { error: "Couldn't determine your organisation for the upload." };
+      const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const path = `${org.id}/${crypto.randomUUID()}-${safe}`;
+      const up = await supabase.storage.from("inspection-reports").upload(path, file);
+      if (up.error) return { error: `Photo upload failed: ${up.error.message}` };
+      return { path };
+    },
+    [org]
+  );
+
+  const removeInspectionPhoto = useCallback(async (path: string) => {
+    // Best-effort: the report row's `areas` list is the source of truth.
+    await supabase.storage.from("inspection-reports").remove([path]);
+  }, []);
+
   const addTenantDocument = useCallback(
     async (leaseTenantId: string, doc: TenantDocument) => {
       const lt = leaseTenants.find((x) => x.id === leaseTenantId);
@@ -1010,6 +1096,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     propertyBills,
     complianceItems,
     conditionReports,
+    inspectionReports,
     notifications,
     unreadCount,
     org,
@@ -1055,6 +1142,11 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     deleteComplianceItem,
     issueConditionReport,
     deleteConditionReport,
+    createInspectionReport,
+    saveInspectionReport,
+    deleteInspectionReport,
+    uploadInspectionPhoto,
+    removeInspectionPhoto,
   };
 
   return <PortfolioContext.Provider value={value}>{children}</PortfolioContext.Provider>;
