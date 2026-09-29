@@ -1,0 +1,25 @@
+# Dependabot keeps dependencies patched: weekly PRs for npm packages and the
+# GitHub Actions we pin in CI. Minor/patch updates are grouped to cut PR noise;
+# majors come as individual PRs so they can be reviewed on their own.
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+    labels:
+      - "dependencies"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "github-actions"
