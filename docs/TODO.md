@@ -113,6 +113,9 @@ Everything needed before other people create accounts and pay.
 - [ ] **(you/build)** Verify **all 8 states/territories'** bond caps, notice periods, tribunal + authority links against official sources.
 - [ ] **(build)** Empty states, error states, and **mobile/responsive QA** across every page + the tenant portal.
 
+### Quality & reliability
+- [x] **(build)** **Automated tests + CI** — Vitest unit suite (66 tests) over the pure business logic: SA inspection notice-window rules, the 8-state jurisdiction/bond-cap table, GST + financial-year maths, recurring-bill date projection, portfolio finance rollups, and the password policy. `gstComponent`/`financialYear` extracted to `src/lib/costs.ts` so they're testable. CI (`.github/workflows/ci.yml`) now runs **lint → typecheck → unit tests → build** on every PR and push to `main`. Next: component/integration tests and a smoke test of the token-guarded portal RPCs.
+
 ### Documents & requirements audit (see `docs/DOCUMENT-AUDIT.md`, 2026-09-28)
 Full comparison of our forms/docs/requirements against established AU agency + authority practice, with sourced gaps. Priorities from that doc:
 - [x] **(build) P1 — Compliance & safety register** — new **Compliance** tab: per-property smoke/gas/electrical/pool/blind-cord/min-standards items with editable cadence, last-done → auto next-due, provider, private certificate storage, "mark done today", and a status (Up to date / Due soon / Overdue). Due dates flow into the Management **calendar** + a **"Compliance & safety due"** dashboard tile. Per-state cadences still to be confirmed against the jurisdiction data.

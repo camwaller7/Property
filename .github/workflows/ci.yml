@@ -1,6 +1,7 @@
 name: CI
 
-# Lint + production build on every PR and on pushes to main, so main stays green.
+# Lint + typecheck + unit tests + production build on every PR and on pushes to
+# main, so main stays green.
 on:
   pull_request:
   push:
@@ -22,6 +23,12 @@ jobs:
 
       - name: Lint
         run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
 
       - name: Build
         run: npm run build
