@@ -5,6 +5,7 @@ import { Field, Select } from "./Field";
 import { usePortfolio } from "@/lib/portfolio";
 import type { InspectionKind } from "@/lib/types";
 import { fmtDate } from "@/lib/format";
+import { postEmail } from "@/lib/email";
 import { inspectionWindow, validateRoutineInspection } from "@/lib/sa-rules";
 
 export default function InspectionScheduler({
@@ -47,14 +48,10 @@ export default function InspectionScheduler({
       "",
       "Thank you.",
     ];
-    await fetch("/api/email", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        to: tenantEmail,
-        subject: `Inspection reminder${property?.address ? ` — ${property.address}` : ""}`,
-        body: lines.join("\n"),
-      }),
+    await postEmail({
+      to: tenantEmail,
+      subject: `Inspection reminder${property?.address ? ` — ${property.address}` : ""}`,
+      body: lines.join("\n"),
     }).catch(() => {});
   }
 

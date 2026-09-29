@@ -4,6 +4,7 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { usePortfolio } from "@/lib/portfolio";
 import { brand } from "@/lib/brand";
+import { postEmail } from "@/lib/email";
 import type { Tenancy } from "@/lib/types";
 
 const BUCKET = "tenant-resources";
@@ -66,11 +67,7 @@ export default function SendTenantDocuments({ tenancy }: { tenancy: Tenancy }) {
           `— ${brand.full}`;
         await Promise.all(
           recipients.map((to) =>
-            fetch("/api/email", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ to, subject: `${kind} — please review`, body, tenancyId: tenancy.id }),
-            }).catch(() => {})
+            postEmail({ to, subject: `${kind} — please review`, body, tenancyId: tenancy.id }).catch(() => {})
           )
         );
       }

@@ -8,16 +8,25 @@ import { brand } from "@/lib/brand";
 // Catch-Hook (ZAPIER_EMAIL_WEBHOOK_URL) if that's all that's configured, so
 // existing setups keep working. Returns a clear 501 until one is set.
 export async function POST(req: Request) {
-  let payload: { to?: string; subject?: string; body?: string; tenancyId?: string; fromName?: string; replyTo?: string };
+  let payload: { to?: string; subject?: string; body?: string; tenancyId?: string; fromName?: string; replyTo?: string; token?: string };
   try {
     payload = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const { to, subject, body, tenancyId, fromName, replyTo } = payload;
+  const { to, subject, body, tenancyId, fromName, replyTo, token } = payload;
   if (!to || !subject) {
     return NextResponse.json({ error: "Recipient and subject are required." }, { status: 400 });
+  }
+
+  // Authorise the send — this endpoint must never be an open email relay.
+  // Accept any one of: the Vercel Cron secret, a valid signed-in manager
+  // (Supabase access token), or a valid tenant portal token (in which case the
+  // send is restricted to that tenancy's manager/owner).
+  const authz = await authorizeEmail(req, token, to);
+  if (!authz.ok) {
+    return NextResponse.json({ error: "Not authorised to send email." }, { status: 401 });
   }
 
   const resendKey = process.env.RESEND_SECRET;
@@ -97,4 +106,48 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: errorText || "Failed to send." }, { status: 502 });
   }
   return NextResponse.json({ ok: true });
+}
+
+// Authorise an email send. Returns { ok } — true when the caller is the cron
+// (CRON_SECRET bearer), a signed-in manager (valid Supabase access token), or a
+// tenant portal token whose tenancy resolves via portal_get and whose manager
+// email matches the recipient (so a portal token can only notify its manager).
+async function authorizeEmail(
+  req: Request,
+  token: string | undefined,
+  to: string
+): Promise<{ ok: boolean }> {
+  const auth = req.headers.get("authorization") || "";
+  const bearer = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
+
+  // 1) Cron.
+  if (process.env.CRON_SECRET && bearer && bearer === process.env.CRON_SECRET) {
+    return { ok: true };
+  }
+
+  // 2) Signed-in manager: validate the access token.
+  if (bearer) {
+    try {
+      const { data, error } = await supabase.auth.getUser(bearer);
+      if (!error && data?.user) return { ok: true };
+    } catch {
+      /* fall through */
+    }
+  }
+
+  // 3) Tenant portal token: must resolve, and may only email its own manager.
+  if (token) {
+    try {
+      const { data } = await supabase.rpc("portal_get", { p_token: token });
+      const payload = data as { contact?: { email?: string | null } } | null;
+      if (payload) {
+        const ownerEmail = payload.contact?.email ?? null;
+        if (ownerEmail && ownerEmail.toLowerCase() === to.toLowerCase()) return { ok: true };
+      }
+    } catch {
+      /* fall through */
+    }
+  }
+
+  return { ok: false };
 }

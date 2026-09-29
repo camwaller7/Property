@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { supabase } from "./supabase";
+import { postEmail } from "./email";
 import type {
   AppNotification,
   Inspection,
@@ -740,11 +741,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         )
       );
       for (const to of emails) {
-        fetch("/api/email", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ to, subject, body, tenancyId: ten.id }),
-        }).catch(() => {});
+        postEmail({ to, subject, body, tenancyId: ten.id }).catch(() => {});
       }
     },
     [maintenance, tenancies, leaseTenants]

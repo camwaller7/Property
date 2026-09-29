@@ -488,6 +488,7 @@ function MaintenanceCard({
             to: managerEmail,
             subject: `New ${kind}${propertyLabel ? ` — ${propertyLabel}` : ""}`,
             body: `${tenantName || "A tenant"} submitted a ${urgency} ${category} ${kind}:\n\n${title}\n${description}\n\nOpen the workspace to action it.`,
+            token,
           }),
         }).catch(() => {});
       }

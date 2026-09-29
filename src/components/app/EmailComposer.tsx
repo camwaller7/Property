@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Modal from "@/components/ui/Modal";
 import { Field, Textarea } from "./Field";
+import { postEmail } from "@/lib/email";
 
 export default function EmailComposer({
   open,
@@ -43,11 +44,7 @@ export default function EmailComposer({
     setSending(true);
     setResult(null);
     try {
-      const res = await fetch("/api/email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to, subject, body, tenancyId }),
-      });
+      const res = await postEmail({ to, subject, body, tenancyId });
       const data = await res.json();
       if (!res.ok) setResult({ error: data.error || "Failed to send." });
       else setResult({ ok: true });
