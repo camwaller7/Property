@@ -17,7 +17,8 @@ import {
 } from "@/lib/arrears";
 
 function money(n: number): string {
-  return "$" + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // en-AU to match the generated letter (lib/arrears) — same figure, same format.
+  return "$" + n.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 // Manager-internal rent-arrears workflow for one tenancy: shows the arrears
@@ -33,8 +34,16 @@ export default function ArrearsWorkflow({
   tenancy: Tenancy | null;
   payments: Payment[];
 }) {
-  const { arrearsNotices, addArrearsNotice } = usePortfolio();
-  const status = useMemo(() => arrearsStatus(payments), [payments]);
+  const { arrearsNotices, addArrearsNotice, deleteArrearsNotice } = usePortfolio();
+  // Scope to THIS tenancy: payments are keyed by property only, so a property
+  // with a prior ended tenancy can carry that tenant's unpaid rows. Filtering to
+  // instalments due on/after this lease's start keeps a new tenant from inheriting
+  // the previous tenant's arrears.
+  const scopedPayments = useMemo(
+    () => (tenancy?.lease_start ? payments.filter((p) => p.due_date && p.due_date >= tenancy.lease_start!) : payments),
+    [payments, tenancy]
+  );
+  const status = useMemo(() => arrearsStatus(scopedPayments), [scopedPayments]);
   const notices = useMemo(
     () =>
       arrearsNotices
@@ -90,11 +99,10 @@ export default function ArrearsWorkflow({
     setDraft(buildDraft(stage));
   }
 
-  async function record(stage: ArrearsStage) {
-    if (!tenancy) return;
-    setBusy(true);
-    setErr("");
-    setMsg("");
+  // Insert one step. Returns whether it persisted (sets err on failure, no msg),
+  // so callers can decide the success message rather than assuming it worked.
+  async function persistStep(stage: ArrearsStage): Promise<boolean> {
+    if (!tenancy) return false;
     const res = await addArrearsNotice({
       tenancyId: tenancy.id,
       propertyId: property.id,
@@ -102,10 +110,34 @@ export default function ArrearsWorkflow({
       amount: status.amount,
       daysInArrears: status.daysInArrears,
       note: null,
+      // Stamp with the manager's local calendar day so it matches the toast/history
+      // rather than the DB's UTC current_date default.
+      sentOn: toISODate(new Date()),
     });
+    if (res.error) {
+      setErr(res.error);
+      return false;
+    }
+    return true;
+  }
+
+  async function record(stage: ArrearsStage) {
+    setBusy(true);
+    setErr("");
+    setMsg("");
+    const ok = await persistStep(stage);
+    setBusy(false);
+    if (ok) setMsg(`Recorded: ${stageLabel(stage)} (${fmtDate(toISODate(new Date()))})`);
+  }
+
+  async function removeStep(id: string) {
+    setBusy(true);
+    setErr("");
+    setMsg("");
+    const res = await deleteArrearsNotice(id);
     setBusy(false);
     if (res.error) setErr(res.error);
-    else setMsg(`Recorded: ${stageLabel(stage)} (${fmtDate(toISODate(new Date()))})`);
+    else setMsg("Removed recorded step.");
   }
 
   async function copyDraft() {
@@ -132,9 +164,14 @@ export default function ArrearsWorkflow({
       if (!res.ok) {
         setErr("Couldn't send the email. Check email is configured.");
       } else {
-        // Log the step as sent, so the ladder reflects it.
-        await record(draftStage);
-        setMsg(`Emailed to ${tenancy.tenant_email} and recorded.`);
+        // Log the step as sent, so the ladder reflects it — but only claim it was
+        // recorded if the insert actually succeeded.
+        const recorded = await persistStep(draftStage);
+        setMsg(
+          recorded
+            ? `Emailed to ${tenancy.tenant_email} and recorded.`
+            : `Emailed to ${tenancy.tenant_email}, but couldn't record the step — use "Record step".`
+        );
         setDraftStage(null);
         setDraft("");
       }
@@ -263,12 +300,22 @@ export default function ArrearsWorkflow({
           <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">History</h3>
           <ul className="mt-2 space-y-1 text-sm">
             {notices.map((n) => (
-              <li key={n.id} className="flex justify-between border-t border-border py-1">
+              <li key={n.id} className="flex items-center justify-between gap-2 border-t border-border py-1">
                 <span>{stageLabel(n.stage as ArrearsStage)}</span>
-                <span className="text-muted">
-                  {fmtDate(n.sent_on)}
-                  {n.amount != null ? ` · ${money(n.amount)}` : ""}
-                  {n.days_in_arrears != null ? ` · ${n.days_in_arrears}d` : ""}
+                <span className="flex items-center gap-2 text-muted">
+                  <span>
+                    {fmtDate(n.sent_on)}
+                    {n.amount != null ? ` · ${money(n.amount)}` : ""}
+                    {n.days_in_arrears != null ? ` · ${n.days_in_arrears}d` : ""}
+                  </span>
+                  <button
+                    onClick={() => removeStep(n.id)}
+                    disabled={busy}
+                    title="Remove this recorded step"
+                    className="text-xs text-muted hover:text-bad hover:underline disabled:opacity-50"
+                  >
+                    Remove
+                  </button>
                 </span>
               </li>
             ))}
