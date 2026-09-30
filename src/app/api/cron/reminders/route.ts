@@ -122,5 +122,14 @@ export async function GET(req: Request) {
     }
   }
 
+  // Housekeeping: drop rate-limit counters from windows well in the past so the
+  // table doesn't grow unbounded. Best-effort; never fails the cron.
+  try {
+    const cutoff = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+    await admin.from("rate_limits").delete().lt("window_start", cutoff);
+  } catch {
+    /* non-fatal */
+  }
+
   return NextResponse.json({ ok: true, processed, sent });
 }

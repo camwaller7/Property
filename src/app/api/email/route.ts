@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { brand } from "@/lib/brand";
 import { appendFooter } from "@/lib/emailFooter";
 import { unsubscribeUrl } from "@/lib/unsubscribeToken";
+import { clientIp, rateLimitKey, EMAIL_RATE } from "@/lib/rateLimit";
 
 // Sends manager/tenant emails via Resend (RESEND_SECRET, server-only). The
 // "from" address must be on a Resend-verified domain — defaults to
@@ -42,6 +44,38 @@ export async function POST(req: Request) {
   const authz = await authorizeEmail(req, token, to);
   if (!authz.ok) {
     return NextResponse.json({ error: "Not authorised to send email." }, { status: 401 });
+  }
+
+  // Volume throttle. The cron is exempt (it legitimately fans out). Everyone
+  // else is capped per principal (manager id / portal token) falling back to
+  // the request IP. Counting runs through the service role; if the service key
+  // isn't configured we fail open rather than block real sends.
+  if (authz.kind !== "cron") {
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (serviceKey) {
+      const supaUrl =
+        process.env.NEXT_PUBLIC_SUPABASE_URL || "https://tioeqxdulxqiptlszldp.supabase.co";
+      const key =
+        authz.kind && authz.id
+          ? rateLimitKey("email", authz.kind, authz.id)
+          : rateLimitKey("email", "ip", clientIp(req.headers.get("x-forwarded-for")));
+      try {
+        const admin = createClient(supaUrl, serviceKey, { auth: { persistSession: false } });
+        const { data: allowed, error } = await admin.rpc("rate_limit_touch", {
+          p_key: key,
+          p_max: EMAIL_RATE.max,
+          p_window_seconds: EMAIL_RATE.windowSeconds,
+        });
+        if (!error && allowed === false) {
+          return NextResponse.json(
+            { error: "Too many emails sent recently. Please try again later." },
+            { status: 429 }
+          );
+        }
+      } catch {
+        // Fail open: a limiter outage must not stop legitimate mail.
+      }
+    }
   }
 
   const resendKey = process.env.RESEND_SECRET;
@@ -149,28 +183,30 @@ export async function POST(req: Request) {
   return NextResponse.json({ ok: true });
 }
 
-// Authorise an email send. Returns { ok } — true when the caller is the cron
-// (CRON_SECRET bearer), a signed-in manager (valid Supabase access token), or a
-// tenant portal token whose tenancy resolves via portal_get and whose manager
-// email matches the recipient (so a portal token can only notify its manager).
+// Authorise an email send and identify the caller for rate limiting. `ok` is
+// true when the caller is the cron (CRON_SECRET bearer), a signed-in manager
+// (valid Supabase access token), or a tenant portal token whose tenancy
+// resolves via portal_get and whose manager email matches the recipient (so a
+// portal token can only notify its manager). `kind`/`id` name the principal:
+// "cron" (exempt from throttling), "manager" + user id, or "portal" + token.
 async function authorizeEmail(
   req: Request,
   token: string | undefined,
   to: string
-): Promise<{ ok: boolean }> {
+): Promise<{ ok: boolean; kind?: "cron" | "manager" | "portal"; id?: string }> {
   const auth = req.headers.get("authorization") || "";
   const bearer = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
 
   // 1) Cron.
   if (process.env.CRON_SECRET && bearer && bearer === process.env.CRON_SECRET) {
-    return { ok: true };
+    return { ok: true, kind: "cron" };
   }
 
   // 2) Signed-in manager: validate the access token.
   if (bearer) {
     try {
       const { data, error } = await supabase.auth.getUser(bearer);
-      if (!error && data?.user) return { ok: true };
+      if (!error && data?.user) return { ok: true, kind: "manager", id: data.user.id };
     } catch {
       /* fall through */
     }
@@ -183,7 +219,8 @@ async function authorizeEmail(
       const payload = data as { contact?: { email?: string | null } } | null;
       if (payload) {
         const ownerEmail = payload.contact?.email ?? null;
-        if (ownerEmail && ownerEmail.toLowerCase() === to.toLowerCase()) return { ok: true };
+        if (ownerEmail && ownerEmail.toLowerCase() === to.toLowerCase())
+          return { ok: true, kind: "portal", id: token };
       }
     } catch {
       /* fall through */
