@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { usePortfolio } from "@/lib/portfolio";
 import { fmtDate } from "@/lib/format";
 import type { LeaseTenant } from "@/lib/types";
+import { validateUpload } from "@/lib/uploads";
 
 const BUCKET = "tenant-documents";
 const KINDS = ["ID", "Payslip", "Reference", "Contract", "Other"];
@@ -52,6 +53,8 @@ export default function TenantDocuments({ person }: { person: LeaseTenant }) {
   async function upload() {
     if (!file) return setErr("Choose a file.");
     if (!org?.id) return setErr("Couldn't determine your organisation.");
+    const bad = validateUpload(file, BUCKET);
+    if (bad) return setErr(bad);
     setBusy(true);
     setErr("");
     const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");

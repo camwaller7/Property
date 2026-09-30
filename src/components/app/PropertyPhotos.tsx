@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { usePortfolio } from "@/lib/portfolio";
 import { fmtDate } from "@/lib/format";
+import { validateUpload } from "@/lib/uploads";
 
 const BUCKET = "property-photos";
 
@@ -53,6 +54,11 @@ export default function PropertyPhotos({ propertyId }: { propertyId: string }) {
     setBusy(true);
     setErr("");
     for (const file of Array.from(files)) {
+      const bad = validateUpload(file, BUCKET);
+      if (bad) {
+        setBusy(false);
+        return setErr(bad);
+      }
       const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
       const path = `${org.id}/${propertyId}/${crypto.randomUUID()}-${safe}`;
       const up = await supabase.storage.from(BUCKET).upload(path, file);

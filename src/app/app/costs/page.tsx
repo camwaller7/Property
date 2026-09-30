@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { usePortfolio } from "@/lib/portfolio";
 import { fmtMoney, fmtDate } from "@/lib/format";
 import { gstComponent, financialYear } from "@/lib/costs";
+import { validateUpload } from "@/lib/uploads";
 import { Field, Select } from "@/components/app/Field";
 import PropertyBills from "@/components/app/PropertyBills";
 import type { PropertyCost, CostCategory } from "@/lib/types";
@@ -289,6 +290,11 @@ function CostForm({ onDone }: { onDone: () => void }) {
       if (!org?.id) {
         setBusy(false);
         return setErr("Couldn't determine your organisation for the receipt upload.");
+      }
+      const bad = validateUpload(file, RECEIPT_BUCKET);
+      if (bad) {
+        setBusy(false);
+        return setErr(bad);
       }
       const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
       const path = `${org.id}/${crypto.randomUUID()}-${safe}`;

@@ -6,6 +6,7 @@ import { usePortfolio } from "@/lib/portfolio";
 import { brand } from "@/lib/brand";
 import { postEmail } from "@/lib/email";
 import type { Tenancy } from "@/lib/types";
+import { validateUpload } from "@/lib/uploads";
 
 const BUCKET = "tenant-resources";
 
@@ -40,6 +41,8 @@ export default function SendTenantDocuments({ tenancy }: { tenancy: Tenancy }) {
     setErr("");
     setMsg("");
     try {
+      const bad = validateUpload(file, BUCKET);
+      if (bad) throw new Error(bad);
       const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
       const path = `${org.id}/lease/${tenancy.id}/${Date.now()}-${safe}`;
       const up = await supabase.storage.from(BUCKET).upload(path, file, { upsert: true });
