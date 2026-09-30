@@ -163,6 +163,7 @@ function OnboardForm({
       });
       if (rpcError) throw new Error(rpcError.message);
       if (result?.error === "already_submitted") throw new Error("This application has already been submitted.");
+      if (result?.error === "rate_limited") throw new Error("Too many attempts just now — please wait a few minutes and try again.");
       if (result?.error) throw new Error("Couldn't submit — please check with your property manager.");
 
       window.scrollTo({ top: 0, behavior: "auto" });
