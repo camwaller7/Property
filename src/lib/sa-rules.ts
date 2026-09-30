@@ -8,6 +8,8 @@
 
 // Routine inspections: written notice 7–28 days before entry, max 4 per year,
 // between 8am–8pm, not on a Sunday or public holiday, max 2 hours.
+import { toISODate } from "./format";
+
 export const INSPECTION_NOTICE_MIN_DAYS = 7;
 export const INSPECTION_NOTICE_MAX_DAYS = 28;
 export const MAX_ROUTINE_INSPECTIONS_PER_YEAR = 4;
@@ -52,8 +54,11 @@ export function validateRoutineInspection(
   return problems;
 }
 
+// Serialise using local calendar fields — the notice window is arithmetic on a
+// local-midnight date, so UTC formatting would shift it a day for AU/other
+// non-UTC users. See toISODate in ./format.
 function iso(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  return toISODate(d);
 }
 
 // Default move-in onboarding checklist for a new SA tenancy. Seeded when a

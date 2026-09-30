@@ -38,7 +38,7 @@ import type {
   TenantApplication,
   TenantDocument,
 } from "./types";
-import { daysUntil, portfolioStats } from "./format";
+import { daysUntil, portfolioStats, toISODate } from "./format";
 import { quarterlyInspectionDates } from "./inspections";
 import { newInspectionAreas } from "./inspectionReport";
 
@@ -507,7 +507,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         .select("user_id")
         .eq("tenancy_id", tenancyId)
         .maybeSingle();
-      const today = new Date().toISOString().slice(0, 10);
+      const today = toISODate(new Date());
       const snap = await supabase.from("rental_history").insert({
         tenancy_id: tenancyId,
         property_id: t.property_id,
@@ -979,7 +979,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   // checklist. Returns the new row's id so the caller can open the editor.
   const createInspectionReport = useCallback(
     async (input: { tenancyId: string; propertyId: string | null; inspectionId?: string | null }) => {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = toISODate(new Date());
       const res = await supabase
         .from("inspection_reports")
         .insert({

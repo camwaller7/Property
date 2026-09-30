@@ -6,10 +6,10 @@ import Badge from "@/components/ui/Badge";
 import LeaseDetail from "./LeaseDetail";
 import { usePortfolio } from "@/lib/portfolio";
 import type { Tenancy } from "@/lib/types";
-import { fmtMoney } from "@/lib/format";
+import { fmtMoney, toISODate } from "@/lib/format";
 
 function todayIso() {
-  return new Date().toISOString().slice(0, 10);
+  return toISODate(new Date());
 }
 
 // At-a-glance flags for a lease: overdue/soon rent and open maintenance.
@@ -22,7 +22,7 @@ function leaseFlags(args: {
   const today = todayIso();
   const soon = new Date();
   soon.setDate(soon.getDate() + 7);
-  const soonIso = soon.toISOString().slice(0, 10);
+  const soonIso = toISODate(soon);
   const unpaid = args.payments.filter((p) => p.status !== "paid" && !p.received_date && p.due_date);
   const overdue = unpaid.filter((p) => (p.due_date as string) < today);
   const dueSoon = unpaid.filter((p) => (p.due_date as string) >= today && (p.due_date as string) <= soonIso);

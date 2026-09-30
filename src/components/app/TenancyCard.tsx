@@ -9,7 +9,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { usePortfolio } from "@/lib/portfolio";
 import type { Inspection, Tenancy } from "@/lib/types";
-import { fmtDate, fmtMoney } from "@/lib/format";
+import { fmtDate, fmtMoney, toISODate } from "@/lib/format";
 import { maxBond, jurisdiction } from "@/lib/jurisdictions";
 import { hasDocuments } from "@/lib/plans";
 import { docForOnboardingKey } from "@/lib/documents";
@@ -26,7 +26,7 @@ function Info({ label, value }: { label: string; value: string }) {
 }
 
 function todayIso() {
-  return new Date().toISOString().slice(0, 10);
+  return toISODate(new Date());
 }
 
 export default function TenancyCard({

@@ -5,12 +5,12 @@ import Badge from "@/components/ui/Badge";
 import PropertyCalendar from "./PropertyCalendar";
 import MaintenanceManager from "./MaintenanceManager";
 import { usePortfolio } from "@/lib/portfolio";
-import { daysUntil, fmtDate, fmtMoney } from "@/lib/format";
+import { daysUntil, fmtDate, fmtMoney, toISODate } from "@/lib/format";
 import { BILL_KIND_LABEL, projectBillDates } from "@/lib/bills";
 import { COMPLIANCE_KIND_LABEL, complianceStatus } from "@/lib/compliance";
 
 function todayIso() {
-  return new Date().toISOString().slice(0, 10);
+  return toISODate(new Date());
 }
 
 // The Management dashboard: the event calendar up top, then at-a-glance tiles

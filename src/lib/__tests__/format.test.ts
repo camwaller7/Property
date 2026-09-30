@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   fmtMoney,
   fmtPct,
+  toISODate,
   daysUntil,
   nextWeekdayDate,
   equity,
@@ -49,6 +50,21 @@ describe("fmtPct", () => {
   });
   it("renders an em-dash for null", () => {
     expect(fmtPct(null)).toBe("—");
+  });
+});
+
+describe("toISODate", () => {
+  it("serialises a Date's LOCAL calendar fields, not its UTC instant", () => {
+    // Constructed from local fields, so this is deterministic in any TZ — the
+    // point of the helper is that it never shifts the day the way toISOString can.
+    expect(toISODate(new Date(2026, 0, 1))).toBe("2026-01-01");
+    expect(toISODate(new Date(2026, 11, 31))).toBe("2026-12-31");
+  });
+  it("zero-pads month and day", () => {
+    expect(toISODate(new Date(2026, 2, 9))).toBe("2026-03-09");
+  });
+  it("returns the local day even at a late-evening local time (would roll over in UTC-positive zones)", () => {
+    expect(toISODate(new Date(2026, 5, 15, 23, 30))).toBe("2026-06-15");
   });
 });
 

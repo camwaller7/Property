@@ -9,7 +9,10 @@ export function deletionScheduledDate(requestedAt: string | null | undefined): s
   if (!requestedAt) return null;
   const d = new Date(requestedAt);
   if (Number.isNaN(d.getTime())) return null;
-  d.setDate(d.getDate() + DELETION_GRACE_DAYS);
+  // requestedAt is a UTC timestamp (deletion_requested_at). Add the grace window
+  // and serialise entirely in UTC so the scheduled date is the same everywhere,
+  // rather than mixing UTC parsing with local-calendar arithmetic.
+  d.setUTCDate(d.getUTCDate() + DELETION_GRACE_DAYS);
   return d.toISOString().slice(0, 10);
 }
 

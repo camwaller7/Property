@@ -6,7 +6,7 @@ import Link from "next/link";
 import Badge from "@/components/ui/Badge";
 import { usePortfolio } from "@/lib/portfolio";
 import { brand } from "@/lib/brand";
-import { fmtDate } from "@/lib/format";
+import { fmtDate, toISODate } from "@/lib/format";
 import { ledgerRows, ledgerSummary, ledgerCsv } from "@/lib/rentLedger";
 
 // A rent ledger is a financial record, so money is shown to the cent here
@@ -88,7 +88,7 @@ export default function RentLedgerPage() {
         <h1 className="mt-1 text-2xl font-semibold tracking-tight">{property.address || "Property"}</h1>
         <p className="mt-1 text-sm text-muted">
           {tenancy?.tenant_name ? <>Tenant: {tenancy.tenant_name} · </> : null}
-          Generated {fmtDate(new Date().toISOString().slice(0, 10))}
+          Generated {fmtDate(toISODate(new Date()))}
         </p>
       </header>
 
