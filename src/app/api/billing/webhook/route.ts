@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
+import { operatingToday } from "@/lib/format";
 
 // Stripe webhook: keeps the organization's plan/subscription in sync. Requires
 // STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, NEXT_PUBLIC_SUPABASE_URL and
@@ -45,7 +46,9 @@ export async function POST(req: Request) {
           const paymentId = s.metadata.payment_id;
           await admin
             .from("payments")
-            .update({ received_date: new Date().toISOString().slice(0, 10), status: "paid", paid_online: true })
+            // Operating-TZ calendar day (server has no viewer TZ), so an online
+            // payment and a manual "mark paid" stamp the same day near midnight.
+            .update({ received_date: operatingToday(), status: "paid", paid_online: true })
             .eq("id", paymentId);
           if (s.metadata.org_id) {
             await admin.from("notifications").insert({

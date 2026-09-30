@@ -1,4 +1,5 @@
 import type { Payment } from "./types";
+import { toISODate } from "./format";
 
 // Rent ledger maths, kept pure so it can be unit-tested without the DB or React.
 // Each `payments` row is one scheduled rent instalment: a charge of `amount` on
@@ -31,7 +32,9 @@ function amt(p: Payment): number {
 }
 
 export function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
+  // Local "today" — an AU manager's calendar day, not UTC's (which can be the
+  // previous/next day for them near midnight).
+  return toISODate(new Date());
 }
 
 // Ascending by due date (undated rows last), then by id so the order is stable.

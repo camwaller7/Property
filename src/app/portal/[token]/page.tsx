@@ -8,7 +8,7 @@ import Badge from "@/components/ui/Badge";
 import InspectionChecklist from "@/components/InspectionChecklist";
 import RentalHistoryPanel from "@/components/portal/RentalHistoryPanel";
 import { Field, Select, Textarea } from "@/components/app/Field";
-import { fmtDate, fmtMoney, nextWeekdayDate, daysUntil } from "@/lib/format";
+import { fmtDate, fmtMoney, nextWeekdayDate, daysUntil, toISODate } from "@/lib/format";
 import { REMINDER_DAYS } from "@/lib/inspections";
 import type { Inspection, MaintenanceRequest, Notice, Payment, PortalResource, Tenancy } from "@/lib/types";
 
@@ -179,7 +179,7 @@ export default function PortalPage() {
   // Once a tenancy ends (or its lease_end passes without renewal) the portal
   // becomes a past-tenancy record: property name + dates only, no live rent,
   // notices, maintenance or documents. The account stays live.
-  const todayIso = new Date().toISOString().slice(0, 10);
+  const todayIso = toISODate(new Date());
   const ended =
     tenancy.status === "ended" || (!!tenancy.lease_end && tenancy.lease_end < todayIso);
 

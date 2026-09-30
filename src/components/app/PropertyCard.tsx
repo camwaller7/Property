@@ -15,6 +15,7 @@ import {
   fmtPct,
   grossYield,
   lvr,
+  toISODate,
 } from "@/lib/format";
 
 function LeaseBadge({ p }: { p: Property }) {
@@ -157,7 +158,7 @@ export default function PropertyCard({
                       <td className="px-3 py-2 text-right">
                         {!pay.received_date && (
                           <button
-                            onClick={() => markPaymentReceived(pay.id, new Date().toISOString().slice(0, 10))}
+                            onClick={() => markPaymentReceived(pay.id, toISODate(new Date()))}
                             className="rounded-full border border-border px-3 py-1 text-xs font-medium hover:bg-surface"
                           >
                             Mark paid

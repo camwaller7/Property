@@ -1,5 +1,36 @@
 import type { Property, Payment } from "./types";
 
+// Format a Date as YYYY-MM-DD using its LOCAL calendar fields. The app treats
+// plain "YYYY-MM-DD" values in the user's local calendar (dates are parsed as
+// local midnight via `+ "T00:00:00"`), so any date built by local-time
+// arithmetic must be serialised the same way. Using `toISOString()` here would
+// re-interpret that local instant in UTC and shift the day by one for anyone
+// east/west of Greenwich (e.g. Australia), which is exactly the off-by-one it
+// used to produce.
+export function toISODate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+// The app's operating timezone. Client code can use the viewer's own local
+// calendar (toISODate), but server-only code (webhooks, cron) has no viewer, so
+// it dates events in this zone rather than UTC — otherwise a server running in
+// UTC records the "wrong" calendar day for an AU operator near local midnight.
+export const OPERATING_TZ = "Australia/Adelaide";
+
+// Today's date (YYYY-MM-DD) in the operating timezone, independent of the
+// runtime's own TZ. Use in server handlers that must stamp a local calendar day.
+export function operatingToday(now: Date = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: OPERATING_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+}
+
 export function fmtMoney(n: number | null | undefined, opts?: { sign?: boolean }): string {
   if (n === undefined || n === null || Number.isNaN(Number(n))) return "—";
   const num = Number(n);
@@ -40,7 +71,7 @@ export function nextWeekdayDate(dayName: string | null | undefined): string | nu
   now.setHours(0, 0, 0, 0);
   const diff = (target - now.getDay() + 7) % 7;
   now.setDate(now.getDate() + diff);
-  return now.toISOString().slice(0, 10);
+  return toISODate(now);
 }
 
 // ---- Per-property finance ------------------------------------------------

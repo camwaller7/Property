@@ -5,7 +5,7 @@ import Badge from "@/components/ui/Badge";
 import { Field, Select } from "./Field";
 import { supabase } from "@/lib/supabase";
 import { usePortfolio } from "@/lib/portfolio";
-import { fmtDate } from "@/lib/format";
+import { fmtDate, toISODate } from "@/lib/format";
 import {
   COMPLIANCE_KINDS,
   COMPLIANCE_KIND_LABEL,
@@ -33,7 +33,7 @@ const STATUS_LABEL: Record<ComplianceStatus, string> = {
 };
 
 function todayIso() {
-  return new Date().toISOString().slice(0, 10);
+  return toISODate(new Date());
 }
 
 // Per-property compliance & safety register. Each item tracks a recurring safety
