@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Field, Select, Textarea } from "@/components/app/Field";
 import { supabase } from "@/lib/supabase";
 import { usePortfolio } from "@/lib/portfolio";
+import { validateUpload } from "@/lib/uploads";
 
 const BUCKET = "tenant-resources";
 
@@ -32,6 +33,8 @@ export default function ResourcesPage() {
     try {
       let path: string | null = null;
       if (file) {
+        const bad = validateUpload(file, BUCKET);
+        if (bad) throw new Error(bad);
         const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
         path = `${org?.id ?? "org"}/resources/${Date.now()}-${safe}`;
         const up = await supabase.storage.from(BUCKET).upload(path, file, { upsert: true });

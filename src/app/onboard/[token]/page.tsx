@@ -17,6 +17,7 @@ import {
   type FieldDef,
 } from "@/lib/application-schema";
 import type { ApplicationDocument, TenantApplication } from "@/lib/types";
+import { validateUpload } from "@/lib/uploads";
 
 const BUCKET = "tenant-documents";
 
@@ -144,6 +145,8 @@ function OnboardForm({
       const documents: ApplicationDocument[] = [];
       for (const [kind, file] of Object.entries(files)) {
         if (!file) continue;
+        const bad = validateUpload(file, BUCKET);
+        if (bad) throw new Error(`${file.name}: ${bad}`);
         const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
         const path = `${app.org_id ?? "org"}/${app.token}/${kind}-${Date.now()}-${safe}`;
         const up = await supabase.storage.from(BUCKET).upload(path, file, { upsert: true });

@@ -39,6 +39,7 @@ import type {
   TenantDocument,
 } from "./types";
 import { daysUntil, portfolioStats, toISODate } from "./format";
+import { validateUpload } from "./uploads";
 import { quarterlyInspectionDates } from "./inspections";
 import { newInspectionAreas } from "./inspectionReport";
 
@@ -945,6 +946,8 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       let document_path: string | null = null;
       if (input.file) {
         if (!org?.id) return { error: "Couldn't determine your organisation for the upload." };
+        const bad = validateUpload(input.file, "tenant-documents");
+        if (bad) return { error: bad };
         const safe = input.file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
         const path = `${org.id}/condition/${crypto.randomUUID()}-${safe}`;
         const up = await supabase.storage.from("tenant-documents").upload(path, input.file);
@@ -1027,6 +1030,8 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   const uploadInspectionPhoto = useCallback(
     async (file: File) => {
       if (!org?.id) return { error: "Couldn't determine your organisation for the upload." };
+      const bad = validateUpload(file, "inspection-reports");
+      if (bad) return { error: bad };
       const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
       const path = `${org.id}/${crypto.randomUUID()}-${safe}`;
       const up = await supabase.storage.from("inspection-reports").upload(path, file);

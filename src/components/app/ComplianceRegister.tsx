@@ -6,6 +6,7 @@ import { Field, Select } from "./Field";
 import { supabase } from "@/lib/supabase";
 import { usePortfolio } from "@/lib/portfolio";
 import { fmtDate, toISODate } from "@/lib/format";
+import { validateUpload } from "@/lib/uploads";
 import {
   COMPLIANCE_KINDS,
   COMPLIANCE_KIND_LABEL,
@@ -71,6 +72,11 @@ export default function ComplianceRegister() {
     if (!file) return null;
     if (!org?.id) {
       setErr("Couldn't determine your organisation for the upload.");
+      return null;
+    }
+    const bad = validateUpload(file, CERT_BUCKET);
+    if (bad) {
+      setErr(bad);
       return null;
     }
     const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");

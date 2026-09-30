@@ -9,6 +9,7 @@ import InspectionChecklist from "@/components/InspectionChecklist";
 import RentalHistoryPanel from "@/components/portal/RentalHistoryPanel";
 import { Field, Select, Textarea } from "@/components/app/Field";
 import { fmtDate, fmtMoney, nextWeekdayDate, daysUntil, toISODate } from "@/lib/format";
+import { validateUpload } from "@/lib/uploads";
 import { REMINDER_DAYS } from "@/lib/inspections";
 import type { Inspection, MaintenanceRequest, Notice, Payment, PortalResource, Tenancy } from "@/lib/types";
 
@@ -486,6 +487,8 @@ function MaintenanceCard({
     try {
       let photoPath: string | null = null;
       if (file) {
+        const bad = validateUpload(file, PHOTO_BUCKET);
+        if (bad) throw new Error(bad);
         const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
         photoPath = `${orgId ?? "org"}/${token}/${Date.now()}-${safe}`;
         const up = await supabase.storage.from(PHOTO_BUCKET).upload(photoPath, file, { upsert: true });
