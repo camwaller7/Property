@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { brand } from "@/lib/brand";
 import { appendFooter } from "@/lib/emailFooter";
 import { unsubscribeUrl } from "@/lib/unsubscribeToken";
+import { clientIp, rateLimitKey, EMAIL_RATE } from "@/lib/rateLimit";
 
 // Sends manager/tenant emails via Resend (RESEND_SECRET, server-only). The
 // "from" address must be on a Resend-verified domain — defaults to
@@ -44,6 +46,44 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Not authorised to send email." }, { status: 401 });
   }
 
+  // Service-role client for the privileged, internal RPCs this route needs
+  // (rate_limit_touch, is_email_suppressed, log_email). Those functions are
+  // locked to the service role, so they're only reachable this way — never over
+  // the public anon key. Built once here and reused below; null when the service
+  // key isn't configured (each use then fails open / is skipped).
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supaUrl =
+    process.env.NEXT_PUBLIC_SUPABASE_URL || "https://tioeqxdulxqiptlszldp.supabase.co";
+  const admin = serviceKey
+    ? createClient(supaUrl, serviceKey, { auth: { persistSession: false } })
+    : null;
+
+  // Volume throttle. The cron is exempt (it legitimately fans out). Everyone
+  // else is capped per principal (manager id / portal token) falling back to
+  // the request IP. Counting runs through the service role; if the service key
+  // isn't configured we fail open rather than block real sends.
+  if (authz.kind !== "cron" && admin) {
+    const key =
+      authz.kind && authz.id
+        ? rateLimitKey("email", authz.kind, authz.id)
+        : rateLimitKey("email", "ip", clientIp(req.headers.get("x-forwarded-for")));
+    try {
+      const { data: allowed, error } = await admin.rpc("rate_limit_touch", {
+        p_key: key,
+        p_max: EMAIL_RATE.max,
+        p_window_seconds: EMAIL_RATE.windowSeconds,
+      });
+      if (!error && allowed === false) {
+        return NextResponse.json(
+          { error: "Too many emails sent recently. Please try again later." },
+          { status: 429 }
+        );
+      }
+    } catch {
+      // Fail open: a limiter outage must not stop legitimate mail.
+    }
+  }
+
   const resendKey = process.env.RESEND_SECRET;
   const webhook = process.env.ZAPIER_EMAIL_WEBHOOK_URL;
   if (!resendKey && !webhook) {
@@ -61,10 +101,12 @@ export async function POST(req: Request) {
 
   // Honour unsubscribes on non-transactional mail. Recipients who opted out are
   // silently skipped (reported as ok so callers/cron don't treat it as a
-  // failure). Transactional mail is never suppressed.
-  if (isNotification) {
+  // failure). Transactional mail is never suppressed. The check runs through the
+  // service role (is_email_suppressed is service-role-only); with no service key
+  // we err on the side of sending.
+  if (isNotification && admin) {
     try {
-      const { data: suppressed } = await supabase.rpc("is_email_suppressed", { p_email: to });
+      const { data: suppressed } = await admin.rpc("is_email_suppressed", { p_email: to });
       if (suppressed === true) {
         return NextResponse.json({ ok: true, skipped: "unsubscribed" });
       }
@@ -128,19 +170,22 @@ export async function POST(req: Request) {
     errorText = e instanceof Error ? e.message : "Email request failed";
   }
 
-  // Record the send attempt (best-effort) via a SECURITY DEFINER RPC, since this
-  // route runs as anon and no longer has direct table access.
-  try {
-    await supabase.rpc("log_email", {
-      p_tenancy_id: tenancyId ?? null,
-      p_to: to,
-      p_subject: subject,
-      p_body: text || null,
-      p_status: status,
-      p_error: errorText,
-    });
-  } catch {
-    // logging is non-fatal
+  // Record the send attempt (best-effort) via a SECURITY DEFINER RPC. log_email
+  // is service-role-only (anon could otherwise forge email_log rows), so it runs
+  // through the admin client; with no service key configured we skip logging.
+  if (admin) {
+    try {
+      await admin.rpc("log_email", {
+        p_tenancy_id: tenancyId ?? null,
+        p_to: to,
+        p_subject: subject,
+        p_body: text || null,
+        p_status: status,
+        p_error: errorText,
+      });
+    } catch {
+      // logging is non-fatal
+    }
   }
 
   if (status === "failed") {
@@ -149,28 +194,30 @@ export async function POST(req: Request) {
   return NextResponse.json({ ok: true });
 }
 
-// Authorise an email send. Returns { ok } — true when the caller is the cron
-// (CRON_SECRET bearer), a signed-in manager (valid Supabase access token), or a
-// tenant portal token whose tenancy resolves via portal_get and whose manager
-// email matches the recipient (so a portal token can only notify its manager).
+// Authorise an email send and identify the caller for rate limiting. `ok` is
+// true when the caller is the cron (CRON_SECRET bearer), a signed-in manager
+// (valid Supabase access token), or a tenant portal token whose tenancy
+// resolves via portal_get and whose manager email matches the recipient (so a
+// portal token can only notify its manager). `kind`/`id` name the principal:
+// "cron" (exempt from throttling), "manager" + user id, or "portal" + token.
 async function authorizeEmail(
   req: Request,
   token: string | undefined,
   to: string
-): Promise<{ ok: boolean }> {
+): Promise<{ ok: boolean; kind?: "cron" | "manager" | "portal"; id?: string }> {
   const auth = req.headers.get("authorization") || "";
   const bearer = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
 
   // 1) Cron.
   if (process.env.CRON_SECRET && bearer && bearer === process.env.CRON_SECRET) {
-    return { ok: true };
+    return { ok: true, kind: "cron" };
   }
 
   // 2) Signed-in manager: validate the access token.
   if (bearer) {
     try {
       const { data, error } = await supabase.auth.getUser(bearer);
-      if (!error && data?.user) return { ok: true };
+      if (!error && data?.user) return { ok: true, kind: "manager", id: data.user.id };
     } catch {
       /* fall through */
     }
@@ -183,7 +230,8 @@ async function authorizeEmail(
       const payload = data as { contact?: { email?: string | null } } | null;
       if (payload) {
         const ownerEmail = payload.contact?.email ?? null;
-        if (ownerEmail && ownerEmail.toLowerCase() === to.toLowerCase()) return { ok: true };
+        if (ownerEmail && ownerEmail.toLowerCase() === to.toLowerCase())
+          return { ok: true, kind: "portal", id: token };
       }
     } catch {
       /* fall through */
