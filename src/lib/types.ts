@@ -374,6 +374,21 @@ export interface ConditionReport {
   created_at?: string;
 }
 
+// One recorded step in a tenancy's rent-arrears workflow (manager/org-only).
+export interface ArrearsNotice {
+  id: string;
+  org_id?: string | null;
+  tenancy_id: string | null;
+  property_id: string | null;
+  stage: "reminder" | "second_notice" | "breach_notice" | "escalation" | string;
+  amount: number | null;
+  days_in_arrears: number | null;
+  note: string | null;
+  sent_on: string;
+  created_by?: string | null;
+  created_at?: string;
+}
+
 export type InspectionKind = "entry" | "routine" | "exit";
 export type InspectionStatus = "scheduled" | "completed" | "cancelled";
 
