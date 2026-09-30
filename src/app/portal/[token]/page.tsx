@@ -504,6 +504,7 @@ function MaintenanceCard({
         p_kind: kind,
       });
       if (error) throw new Error(error.message);
+      if (res?.error === "rate_limited") throw new Error("Too many requests just now — please wait a few minutes and try again.");
       if (res?.error) throw new Error("Couldn't submit — please contact your manager.");
 
       if (managerEmail) {

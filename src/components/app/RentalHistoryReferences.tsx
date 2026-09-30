@@ -58,6 +58,7 @@ export default function RentalHistoryReferences() {
       const messages: Record<string, string> = {
         not_a_manager: "Only a manager account can request history.",
         tenant_not_found: "No Corvelle tenant account was found for that email. They need a tenant portal account first.",
+        rate_limited: "You've made a lot of history requests recently — please wait a while and try again.",
       };
       setErr(messages[res.error] ?? res.error);
       return;
