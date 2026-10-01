@@ -31,6 +31,7 @@ import type {
   PropertyBill,
   ComplianceItem,
   ConditionReport,
+  ArrearsNotice,
   InspectionReport,
   InspectionReportInput,
   PropertyPhoto,
@@ -80,6 +81,7 @@ interface PortfolioContextValue {
   complianceItems: ComplianceItem[];
   conditionReports: ConditionReport[];
   inspectionReports: InspectionReport[];
+  arrearsNotices: ArrearsNotice[];
   notifications: AppNotification[];
   unreadCount: number;
   org: Organization | null;
@@ -155,6 +157,16 @@ interface PortfolioContextValue {
     file?: File | null;
   }) => Promise<{ error?: string }>;
   deleteConditionReport: (id: string) => Promise<{ error?: string }>;
+  addArrearsNotice: (input: {
+    tenancyId: string;
+    propertyId: string | null;
+    stage: string;
+    amount: number | null;
+    daysInArrears: number | null;
+    note?: string | null;
+    sentOn?: string;
+  }) => Promise<{ error?: string }>;
+  deleteArrearsNotice: (id: string) => Promise<{ error?: string }>;
   createInspectionReport: (input: {
     tenancyId: string;
     propertyId: string | null;
@@ -191,6 +203,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
   const [complianceItems, setComplianceItems] = useState<ComplianceItem[]>([]);
   const [conditionReports, setConditionReports] = useState<ConditionReport[]>([]);
   const [inspectionReports, setInspectionReports] = useState<InspectionReport[]>([]);
+  const [arrearsNotices, setArrearsNotices] = useState<ArrearsNotice[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [org, setOrg] = useState<Organization | null>(null);
   const [members, setMembers] = useState<OrgMember[]>([]);
@@ -293,6 +306,12 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       .select("*")
       .order("inspected_on", { ascending: false, nullsFirst: false });
     setInspectionReports((inspReports as InspectionReport[]) || []);
+
+    const { data: arrears } = await supabase
+      .from("arrears_notices")
+      .select("*")
+      .order("sent_on", { ascending: false });
+    setArrearsNotices((arrears as ArrearsNotice[]) || []);
 
     const { data: notifs } = await supabase
       .from("notifications")
@@ -978,6 +997,45 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     [reload]
   );
 
+  // Record one step in a tenancy's rent-arrears workflow (org-only log).
+  const addArrearsNotice = useCallback(
+    async (input: {
+      tenancyId: string;
+      propertyId: string | null;
+      stage: string;
+      amount: number | null;
+      daysInArrears: number | null;
+      note?: string | null;
+      sentOn?: string;
+    }) => {
+      if (!org?.id) return { error: "Couldn't determine your organisation." };
+      const res = await supabase.from("arrears_notices").insert({
+        org_id: org.id,
+        tenancy_id: input.tenancyId,
+        property_id: input.propertyId,
+        stage: input.stage,
+        amount: input.amount,
+        days_in_arrears: input.daysInArrears,
+        note: input.note?.trim() || null,
+        ...(input.sentOn ? { sent_on: input.sentOn } : {}),
+      });
+      if (res.error) return { error: res.error.message };
+      await reload();
+      return {};
+    },
+    [reload, org]
+  );
+
+  const deleteArrearsNotice = useCallback(
+    async (id: string) => {
+      const res = await supabase.from("arrears_notices").delete().eq("id", id);
+      if (res.error) return { error: res.error.message };
+      await reload();
+      return {};
+    },
+    [reload]
+  );
+
   // Create a draft routine inspection report seeded with the default area
   // checklist. Returns the new row's id so the caller can open the editor.
   const createInspectionReport = useCallback(
@@ -1123,6 +1181,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     complianceItems,
     conditionReports,
     inspectionReports,
+    arrearsNotices,
     notifications,
     unreadCount,
     org,
@@ -1168,6 +1227,8 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     deleteComplianceItem,
     issueConditionReport,
     deleteConditionReport,
+    addArrearsNotice,
+    deleteArrearsNotice,
     createInspectionReport,
     saveInspectionReport,
     deleteInspectionReport,

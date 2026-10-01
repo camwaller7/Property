@@ -8,6 +8,7 @@ import { usePortfolio } from "@/lib/portfolio";
 import { brand } from "@/lib/brand";
 import { fmtDate, toISODate } from "@/lib/format";
 import { ledgerRows, ledgerSummary, ledgerCsv } from "@/lib/rentLedger";
+import ArrearsWorkflow from "@/components/app/ArrearsWorkflow";
 
 // A rent ledger is a financial record, so money is shown to the cent here
 // (the app-wide `fmtMoney` rounds to whole dollars, which would drop cents and
@@ -159,6 +160,9 @@ export default function RentLedgerPage() {
         Each row is one scheduled rent instalment. Balance is the running total of rent charged less
         rent received. Not a tax document.
       </p>
+
+      {/* Manager-only arrears workflow — hidden from the printed tenant statement. */}
+      <ArrearsWorkflow property={property} tenancy={tenancy} payments={payments} />
     </div>
   );
 }
